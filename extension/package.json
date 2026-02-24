@@ -1,0 +1,97 @@
+{
+  "name": "pynt",
+  "displayName": "Pynt - Educational Code Analyzer",
+  "description": "Analisi statica educativa con feedback LLM per studenti",
+  "version": "0.2.0",
+  "publisher": "pynt",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Linters",
+    "Education",
+    "Programming Languages"
+  ],
+  "activationEvents": [
+    "onLanguage:python",
+    "onLanguage:javascript",
+    "onLanguage:typescript",
+    "onLanguage:java",
+    "onLanguage:cpp"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "pynt.showAnalysisMenu",
+        "title": "Pynt: Scegli Tipo di Analisi",
+        "icon": "$(shield)"
+      },
+      {
+        "command": "pynt.analyzeFile",
+        "title": "Pynt: Analizza File Corrente"
+      },
+      {
+        "command": "pynt.clearDiagnostics",
+        "title": "Pynt: Pulisci Diagnostics"
+      },
+      {
+        "command": "pynt.toggleAutoAnalysis",
+        "title": "Pynt: Toggle Auto-Analisi al Salvataggio"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "pynt.showAnalysisMenu",
+          "when": "editorLangId == python || editorLangId == javascript || editorLangId == typescript || editorLangId == java || editorLangId == cpp",
+          "group": "pynt@1"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Pynt",
+      "properties": {
+        "pynt.serverUrl": {
+          "type": "string",
+          "default": "http://localhost:8000",
+          "description": "URL del server backend Pynt"
+        },
+        "pynt.autoAnalyzeOnSave": {
+          "type": "boolean",
+          "default": false,
+          "description": "Analizza automaticamente il file al salvataggio (usa defaultAnalysisType)"
+        },
+        "pynt.defaultAnalysisType": {
+          "type": "string",
+          "enum": ["security", "best_practices", "fault_detection", "all"],
+          "default": "all",
+          "description": "Tipo di analisi da usare quando auto-analisi è abilitata",
+          "enumDescriptions": [
+            "Solo analisi sicurezza",
+            "Solo best practices",
+            "Solo fault detection",
+            "Tutte le analisi insieme"
+          ]
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts"
+  },
+  "devDependencies": {
+    "@types/node": "^18.0.0",
+    "@types/vscode": "^1.80.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.0.0",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "axios": "^1.6.0"
+  }
+}
