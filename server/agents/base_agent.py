@@ -334,17 +334,26 @@ class BaseAgent(ABC):
 
             SUGGESTED_FIX:
             [Spiega COME correggere la riga {start_line}. Sii specifico.]
-            
+                
+
             APPLICABLE_FIX:
              ```python
-                [INSERISCI QUI ESCLUSIVAMENTE IL CODICE PYTHON VALIDO DA SOSTITUIRE]
-                [NON AGGIUNGERE COMMENTI (#) SE NON STRETTAMENTE NECESSARI]
-                [NON SCRIVERE TESTO PRIMA O DOPO IL BLOCCO DI CODICE]
-                ```
-
+                [REGOLE MANDATORIE:
+                    1. NO BOILERPLATE: Non includere 'if __name__ == "__main__':", non includere classi o funzioni esterne se non sono l'oggetto del fix.
+                    2. CONTESTO: Restituisci ESCLUSIVAMENTE le righe di codice che sostituiscono la logica vulnerabile.
+                    3. FORMATO: Restituisci il codice SENZA INDENTAZIONE iniziale (colonna 0).
+                    4. COMPLETEZZA: Il codice deve essere sintatticamente corretto per Python ma limitato al blocco interessato.
+                    5. NON INCLUDERE ASSOLUTAMENTE COMMENTI O TESTO NON CODICE.
+                    6. SEPARA IMPORT DAL CODICE]
+                [IMPORTS]
+                (Inserisci qui solo i nuovi import necessari, uno per riga)
+                [FIX]               
+                (Inserisci qui SOLO il codice che sostituisce la riga {start_line}, senza indentazione)     
+                    ```
             CODE_EXAMPLE:
-            [Mostra SOLO il codice corretto per la riga {start_line}, ben formattato.]
-
+                 [Inserisci qui un esempio SOLO del codice corretto per la riga {start_line}, ben formattato.]
+              
+            
             REFERENCES:
             [1-2 link ufficiali OWASP o documentazione Python]
 
