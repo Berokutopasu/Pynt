@@ -140,7 +140,8 @@ class BaseAgent(ABC):
                     rag_context = ""
                     if rag_service:
                         msg = semgrep_result.extra.get('message', '') if isinstance(semgrep_result.extra, dict) else ""
-                        query = f"{semgrep_result.check_id} {msg}"
+                        target_code = code.split('\n')[semgrep_result.start.get('line', 1)-1]
+                        query = f"security validation sanitization for {msg} and usage of {target_code[:50]}"
                         # RAG su thread separato
                         rag_context = await asyncio.to_thread(rag_service.retrieve_context, query)
                         # --- [RAG DEBUG] AGGIUNGI QUESTO BLOCCO ---
