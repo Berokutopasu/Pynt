@@ -33,7 +33,7 @@ async def lifespan(app: FastAPI):
     """Lifecycle events per inizializzazione e cleanup"""
     global semgrep_analyzer, rag_service
     
-    print("Inizializzazione Pynt Server (Gemini Edition)...")
+    print("Inizializzazione Pynt Server...")
     
     # Valida configurazione
     try:
@@ -103,7 +103,7 @@ async def health_check():
         status="healthy",
         version="0.2.0",
         agents_loaded=["security", "best_practices", "fault_detection"],
-        langchain_configured=settings.GOOGLE_API_KEY is not None
+        langchain_configured=settings.GROQ_API_KEYS is not None
     )
 
 

@@ -337,19 +337,21 @@ class BaseAgent(ABC):
                 
 
             APPLICABLE_FIX:
-             ```python
-                [REGOLE MANDATORIE:
+                [REGOLE MANDATORIE  E RISPETTA LA STRUTTURA (IMPORTS, FIX RIPORTANDO IL NOME DELLA) :
                     1. NO BOILERPLATE: Non includere 'if __name__ == "__main__':", non includere classi o funzioni esterne se non sono l'oggetto del fix.
-                    2. CONTESTO: Restituisci ESCLUSIVAMENTE le righe di codice che sostituiscono la logica vulnerabile.
-                    3. FORMATO: Restituisci il codice SENZA INDENTAZIONE iniziale (colonna 0).
+                    2. CONTESTO: Restituisci ESCLUSIVAMENTE le righe che sostituiscono la logica vulnerabile. Se la correzione richiede la modifica della firma della funzione o di un decoratore, restituisci l'intero blocco 'def'. Altrimenti, restituisci solo la riga interessata.
                     4. COMPLETEZZA: Il codice deve essere sintatticamente corretto per Python ma limitato al blocco interessato.
                     5. NON INCLUDERE ASSOLUTAMENTE COMMENTI O TESTO NON CODICE.
-                    6. SEPARA IMPORT DAL CODICE]
-                [IMPORTS]
-                (Inserisci qui solo i nuovi import necessari, uno per riga)
-                [FIX]               
-                (Inserisci qui SOLO il codice che sostituisce la riga {start_line}, senza indentazione)     
-                    ```
+                    7. NON includere righe di codice che sono già presenti nel file (come chiamate a funzioni o esecuzioni di comandi) a meno che non siano l'oggetto diretto della correzione.
+                    8. Se il fix richiede più righe per una singola riga target, assicurati che non introducano ridondanza con il resto del contesto.
+                    9. Markdown (niente ```): Non includere blocchi di codice markdown (```), restituisci solo il codice puro.
+                    10. SEPARA IMPORT DAL CODICE INSERENDO NELLA SEZIONE IMPORT SOLO GLI IMPORT NECESSARI AL FIX, MA SOLO SE NON SONO GIA' PRESENTI NEL FILE. SE IL FIX PUO' ESSERE APPLICATO SENZA NUOVI IMPORT, LASCIA LA SEZIONE IMPORT VUOTA.]         
+            IMPORTS:
+            [Inserisci qui SOLO gli import necessari per il fix, ma solo se non sono già presenti nel file. Se non servono nuovi import, lascia vuota questa sezione.]
+            [NON INCLUDERE COMMENTI O TESTO NON CODICE, SOLO IMPORT PURI]
+            FIX:
+            [Inserisci qui SOLO le righe di codice che sostituiscono la logica vulnerabile, seguendo le regole sopra. Se la riga vulnerabile è una senza contesto, restituisci solo quella riga corretta.]
+            [NON INCLUDERE COMMENTI O TESTO NON CODICE, SOLO CODICE PURO]
             CODE_EXAMPLE:
                  [Inserisci qui un esempio SOLO del codice corretto per la riga {start_line}, ben formattato.]
               
@@ -359,19 +361,52 @@ class BaseAgent(ABC):
 
             NOTA: Ogni sezione DEVE iniziare con il suo header (EXPLANATION:, ecc.) su una riga separata.
             """
+    def _is_valid_python_code(self, code: str) -> bool:
+        """Verifica se la stringa è codice Python o semplice testo descrittivo"""
+        if not code or len(code.strip()) < 5:
+            return False
+        
+        # Marcatori di linguaggio naturale (se presenti, probabilmente non è codice puro)
+        natural_language_markers = [
+            "necessario", "modifiche", "falso positivo", 
+            "già corretto", "codice sembra ok", "nessun", "spiegazione"
+        ]
+        
+        code_lower = code.lower()
+        # Se contiene frasi discorsive tipiche, scartiamo
+        if any(marker in code_lower for marker in natural_language_markers):
+            return False
+
+        # Requisito minimo strutturale: deve contenere almeno un operatore, 
+        # una chiamata di funzione o una keyword Python
+        python_patterns = [r'=', r'\(.*\)', r'import\s+', r'def\s+', r'from\s+', r'\[.*\]']
+        if not any(re.search(p, code) for p in python_patterns):
+            return False
+
+        return True
+
     def _parse_llm_response(self, response_text: str) -> Dict[str, str]:
         import re
         
-        # 1. ESTRAZIONE CHIRURGICA DEL CODICE (Priorità Assoluta)
-        # Cerchiamo il blocco APPLICABLE_FIX prima di ogni altra cosa
+            # 1. ESTRAZIONE SEZIONE APPLICABLE_FIX (TUTTA, non solo il primo blocco ```)
         applicable_fix = None
-        # Cerchiamo il pattern APPLICABLE_FIX seguito da un blocco di codice ```
-        fix_match = re.search(r'APPLICABLE_FIX:\s*.*?```(?:python|py)?\s*(.*?)\s*```', response_text, re.DOTALL | re.IGNORECASE)
-        
-        if fix_match:
-            applicable_fix = fix_match.group(1).strip()
-            # Rimuoviamo il blocco trovato dal testo originale per evitare che le altre regex si confondano
-            response_text = response_text.replace(fix_match.group(0), "APPLICABLE_FIX: [EXTRACTED]")
+        # Cerchiamo tutto il testo tra APPLICABLE_FIX e la sezione successiva (CODE_EXAMPLE o REFERENCES)
+        fix_section_match = re.search(r'APPLICABLE_FIX:\s*(.*?)(?=CODE_EXAMPLE:|REFERENCES:|$)', response_text, re.DOTALL | re.IGNORECASE)
+
+        if fix_section_match:
+            # Prendiamo tutto il blocco grezzo, inclusi i tag IMPORTS: e FIX:
+            raw_fix = fix_section_match.group(1).strip()
+            clean_fix = re.sub(r'```(?:python|py)?|```', '', raw_fix).strip()
+            # VALIDAZIONE: Se è testo discorsivo, lo impostiamo a None
+            if self._is_valid_python_code(clean_fix):
+                applicable_fix = clean_fix
+                print(f"✅ [BACKEND] Fix validato: {applicable_fix[:30]}...")
+            else:
+                print(f"⚠️ [BACKEND] Fix scartato (rilevato testo discorsivo): {clean_fix[:40]}...")
+                applicable_fix = None
+
+            # Log di debug per vedere cosa stiamo mandando al plugin
+            print(f"DEBUG BACKEND - Fix estratto: {applicable_fix[:50]}...")
 
         # 2. ESTRAZIONE DELLE ALTRE SEZIONI
         sections = {
