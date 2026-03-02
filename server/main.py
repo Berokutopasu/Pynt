@@ -193,7 +193,7 @@ async def analyze_with_single_agent(
 ) -> AnalysisResponse:
     """Analizza con un singolo agente e ritorna AnalysisResponse"""
     start_time = time.time()
-    print(f"\n📦 [API DEBUG] Ricevuto project_path: {project_path}")
+    print(f"\n [API DEBUG] Ricevuto project_path: {project_path}")
     if project_path:
         print(f"   (Il RAG dovrebbe attivarsi)")
     else:
@@ -239,7 +239,7 @@ async def analyze_with_agent(
             agent = get_fault_agent(language)
             
         if not agent:
-            print(f"⚠️ Nessun agente trovato per {analysis_type}")
+            print(f" Nessun agente trovato per {analysis_type}")
             return AgentResponse(analysisType=analysis_type, findings=[], processingTime=0)
 
         # 2. ESECUZIONE UNIFICATA
@@ -263,7 +263,7 @@ async def analyze_with_agent(
         )
         
     except Exception as e:
-        print(f"❌ Errore in analyze_with_agent ({analysis_type}): {e}")
+        print(f" Errore in analyze_with_agent ({analysis_type}): {e}")
         import traceback
         print(traceback.format_exc()) # Utile per debuggare
         return AgentResponse(

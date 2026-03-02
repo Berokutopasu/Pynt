@@ -10,28 +10,27 @@ class BestPracticesAgent(BaseAgent):
         super().__init__(AnalysisType.BEST_PRACTICES, language)
     
     def get_system_prompt(self) -> str:
-        return f"""Sei un mentore di programmazione esperto in {self.language}.
-Il tuo compito è insegnare best practices e stile di codice a studenti. Fallo in italiano 
+                return f"""You are an expert programming mentor specializing in {self.language}. 
+        Your task is to teach code style and best practices to students. Please provide your responses in Italian.
 
-REGOLE FONDAMENTALI:
-1. NON dire mai "consulta la documentazione". DEVI essere tu la documentazione
-2. Spiega il PERCHÉ dietro ogni best practice
-3. Mostra come il codice migliorato è più leggibile/manutenibile
-4. Usa esempi before/after
-5. Riferisci standard ufficiali (PEP, Google Style Guide, etc.)
-6. Sii costruttivo e incoraggiante, non critico
+        FUNDAMENTAL RULES:
+        1. NEVER say 'consult the documentation'. YOU must be the documentation.
+        2. Explain the 'WHY' behind every best practice.
+        3. Demonstrate how the improved code is more readable and maintainable.
+        4. Reference official standards (PEP, Google Style Guide, etc.).
+        5. Be constructive and encouraging, not critical.
 
-Focus su:
-- Naming conventions
-- Code organization e struttura
-- DRY (Don't Repeat Yourself)
-- SOLID principles dove applicabile
-- Readability e maintainability
-- Performance patterns
-- Idiomaticità nel linguaggio
+        Focus on:
+        - Naming conventions
+        - Code organization and structure
+        - DRY (Don't Repeat Yourself)
+        - SOLID principles where applicable
+        - Readability and maintainability
+        - Performance patterns
+        - Idiomatic language use (Idiomaticity)
 
-Enfatizza che le best practices rendono il codice più facile da capire e modificare."""
-    
+        Emphasize that best practices make the code easier to understand and modify."""
+            
     def get_analysis_focus(self) -> str:
         return "Best Practices e Qualità del Codice"
 
@@ -58,52 +57,6 @@ Best practices specifiche Python:
 - Virtual environments e dependency management"""
 
 
-class JavaScriptBestPracticesAgent(BestPracticesAgent):
-    """Agente best practices per JavaScript/TypeScript"""
-    
-    def __init__(self, language: str = "javascript"):
-        super().__init__(language)
-    
-    def get_system_prompt(self) -> str:
-        base_prompt = super().get_system_prompt()
-        return base_prompt + """
-
-Best practices specifiche JavaScript/TypeScript:
-- const/let invece di var
-- Arrow functions appropriatamente
-- Destructuring per clarity
-- Template literals
-- Async/await vs promises
-- Modern ES6+ features
-- Airbnb o Google style guide
-- JSDoc comments
-- Module imports/exports
-- Error handling patterns"""
-
-
-class JavaBestPracticesAgent(BestPracticesAgent):
-    """Agente best practices per Java"""
-    
-    def __init__(self, language: str = "java"):
-        super().__init__(language)
-    
-    def get_system_prompt(self) -> str:
-        base_prompt = super().get_system_prompt()
-        return base_prompt + """
-
-Best practices specifiche Java:
-- Naming conventions (camelCase, PascalCase)
-- SOLID principles
-- Design patterns appropriati
-- Stream API per collections
-- Optional per null safety
-- Try-with-resources
-- Javadoc comments
-- Package organization
-- Exception hierarchy
-- Immutability quando possibile"""
-
-
 # --- FACTORY FUNCTION ---
 def get_bestpractices_agent(language: str) -> BaseAgent:
     """Restituisce l'agente best practices specializzato per il linguaggio"""
@@ -111,10 +64,6 @@ def get_bestpractices_agent(language: str) -> BaseAgent:
     
     if lang_lower in ["python", "py"]:
         return PythonBestPracticesAgent()
-    elif lang_lower in ["javascript", "typescript", "js", "ts"]:
-        return JavaScriptBestPracticesAgent(language=lang_lower)
-    elif lang_lower in ["java"]:
-        return JavaBestPracticesAgent()
     else:
         # Fallback generico
         return BestPracticesAgent(language)

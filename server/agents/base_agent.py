@@ -24,7 +24,7 @@ class BaseAgent(ABC):
         # Questo impedisce che il server si blocchi all'avvio tentando connessioni.
         self.groq_keys = settings.EFFECTIVE_GROQ_KEYS
         if not self.groq_keys:
-            print("⚠️ ATTENZIONE: Nessuna chiave GROQ_API_KEYS trovata nel .env!")
+            print(" ATTENZIONE: Nessuna chiave GROQ_API_KEYS trovata nel .env!")
             # Fallback dummy per evitare crash immediato, ma l'analisi fallirà
             self.groq_keys = ["dummy_key"]
 
@@ -37,7 +37,7 @@ class BaseAgent(ABC):
         usando la chiave corrente (current_key_index).
         """
         if self._llm_instance is None:
-            print(f"🔌 Inizializzazione LLM con chiave index {self.current_key_index}")
+            print(f" Inizializzazione LLM con chiave index {self.current_key_index}")
             current_key = self.groq_keys[self.current_key_index]
             #maschera della chiave nei log per sicurezzza
             self._llm_instance = ChatGroq(
@@ -55,7 +55,7 @@ class BaseAgent(ABC):
         a ricrearla con la nuova chiave alla prossima chiamata.
         """
         self.current_key_index = (self.current_key_index + 1) % len(self.groq_keys)
-        print(f"🔄 Ruoto alla chiave Groq #{self.current_key_index}")
+        print(f" Ruoto alla chiave Groq #{self.current_key_index}")
         
         # DISTRUGGERE L'ISTANZA VECCHIA
         self._llm_instance = None
@@ -84,14 +84,14 @@ class BaseAgent(ABC):
             language, 
             self.analysis_type,
             project_path,
-            filename,  # ← FIX: Passa il filename!
+            filename, 
             extra_targets
         )
 
         # --- MODIFICA FONDAMENTALE PER IL RAG ---
         # 2. Se abbiamo un path e il servizio RAG, dobbiamo indicizzare i file!
         if project_path and rag_service:
-            print(f"🔄 [RAG] Verificando indicizzazione per: {project_path}")
+            print(f" [RAG] Verificando indicizzazione per: {project_path}")
             # Eseguiamo l'ingestione in un thread separato (perché legge file da disco)
             await asyncio.to_thread(
                 rag_service.ingest_project,
@@ -130,7 +130,7 @@ class BaseAgent(ABC):
         MAX_CONCURRENT_REQUESTS =5
         semaphore = asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
 
-        print(f"🚀 [BaseAgent] Avvio analisi parallela di {len(unique_results)} problemi...")
+        print(f" [BaseAgent] Avvio analisi parallela di {len(unique_results)} problemi...")
 
         # Funzione interna per gestire il singolo task col semaforo
         async def process_single_item(semgrep_result):
@@ -146,10 +146,10 @@ class BaseAgent(ABC):
                         rag_context = await asyncio.to_thread(rag_service.retrieve_context, query)
                         # --- [RAG DEBUG] AGGIUNGI QUESTO BLOCCO ---
                         if rag_context:
-                            print(f"\n🔎 [RAG DEBUG] Trovato contesto per {semgrep_result.check_id}:")
+                            print(f"\n [RAG DEBUG] Trovato contesto per {semgrep_result.check_id}:")
                             print(f"   {rag_context[:300]}...") # Stampa i primi 300 caratteri
                         else:
-                            print(f"\n❌ [RAG DEBUG] Nessun contesto trovato per {semgrep_result.check_id}")
+                            print(f"\n [RAG DEBUG] Nessun contesto trovato per {semgrep_result.check_id}")
 
                     # Chiamata LLM su thread separato (fondamentale per non bloccare)
                     educational_content = await self._generate_educational_explanation(
@@ -161,7 +161,7 @@ class BaseAgent(ABC):
                     return self._create_finding(semgrep_result, educational_content)
 
                 except Exception as e:
-                    print(f"🔥 ERRORE ASYNC: {e}")
+                    print(f" ERRORE ASYNC: {e}")
                     return self._create_basic_finding(semgrep_result)
 
         # 3. LANCIO PARALLELO (Gather)
@@ -198,7 +198,7 @@ class BaseAgent(ABC):
             
             # Se è la riga dell'errore, aggiungiamo un marcatore
             if actual_line_num == start_line:
-                marker = "  <--- 🔴 ANALIZZA SOLO QUESTA RIGA"
+                marker = "  # <--- [TARGET LINE]"
                 annotated_lines.append(f"{actual_line_num}: {line_content}{marker}")
             else:
                 annotated_lines.append(f"{actual_line_num}: {line_content}")
@@ -212,7 +212,7 @@ class BaseAgent(ABC):
             rag_context=rag_context
         )
         print(f"\n{'='*60}")
-        print(f"🤖 CHIAMATA LLM per riga {start_line}")
+        print(f" CHIAMATA LLM per riga {start_line}")
         print(f"{'='*60}")
         start_time = time.time()
          # Tentiamo tante volte quante sono le chiavi x 2
@@ -235,19 +235,18 @@ class BaseAgent(ABC):
                 content = response.content if hasattr(response, 'content') else str(response)
                 
                 # --- LE TUE PRINT DI DEBUG (MANTENUTE) ---
-                print(f"✅ RISPOSTA (Tentativo {attempt + 1}) in {duration:.2f}s")
-                print(f"📏 Lunghezza: {len(content)} caratteri")
-                print(f"📄 CONTENUTO COMPLETO:")
+                print(f"RISPOSTA (Tentativo {attempt + 1}) in {duration:.2f}s")
+                print(f"Lunghezza: {len(content)} caratteri")
+                print(f"CONTENUTO COMPLETO:")
                 print(content)
                 print(f"{'='*60}\n")
                 
                 # 3. Parsing risposta
                 parsed = self._parse_llm_response(content)
                 
-                # --- VALIDAZIONE POST-PARSING (MANTENUTA) ---
-                print(f"🔍 VALIDAZIONE PARSING:")
+                print("VALIDAZIONE PARSING:")
                 for key, value in parsed.items():
-                    status = "✅" if value and value != "Nessun contenuto disponibile." else "❌"
+                    status = "[OK]" if value and value != "Nessun contenuto disponibile." else "[FAIL]"
                     print(f"  {status} {key}: {len(value) if value else 0} caratteri")
                 
                 # Se arriviamo qui, è andato tutto bene: ritorniamo il risultato
@@ -258,14 +257,14 @@ class BaseAgent(ABC):
                 
                 # 4. Gestione Specifica Rate Limit (Rotazione)
                 if "429" in error_msg or "rate limit" in error_msg or "too many requests" in error_msg:
-                    print(f"⚠️ Rate Limit Groq (Key Index {self.current_key_index}): {error_msg[:100]}...")
+                    print(f" Rate Limit Groq (Key Index {self.current_key_index}): {error_msg[:100]}...")
                     self._rotate_key()
                     await asyncio.sleep(1) # Piccolo backoff
                     continue # Riprova il ciclo con la nuova chiave
                 
                 # 5. Gestione Errori Fatali (Print originali)
                 else:
-                    print(f"❌ ERRORE LLM IRRECUPERABILE: {e}")
+                    print(f"ERRORE LLM IRRECUPERABILE: {e}")
                     import traceback
                     print(traceback.format_exc())
                     break # Esce dal loop e va al fallback
@@ -298,7 +297,7 @@ class BaseAgent(ABC):
             context_section = ""
             if rag_context:
                 context_section = f"""
-                🔍 CONTESTO AGGIUNTIVO (Codice trovato in altri file del progetto):
+                 CONTESTO AGGIUNTIVO (Codice trovato in altri file del progetto):
                 =================================================================
                 {rag_context}
                 =================================================================
@@ -307,60 +306,59 @@ class BaseAgent(ABC):
                 """
 
             # --- 2. COSTRUZIONE DEL PROMPT FINALE ---
-            return f"""Sei un Security Engineer che spiega vulnerabilità a studenti.
-            Analizza ESCLUSIVAMENTE la riga marcata con "🔴". Valuta se è un falso positivo. 
+                return f"""You are a Security Engineer explaining vulnerabilities to students.
+    EXCLUSIVELY analyze the line marked with "[TARGET LINE]". Evaluate if it is a false positive. 
 
-            Dati Tecnici:
-            - Regola: {rule_id}
-            - Messaggio Semgrep: {message}
-            - Riga Target: {start_line}
+    Technical Data:
+    - Rule: {rule_id}
+    - Semgrep Message: {message}
+    - Target Line: {start_line}
 
-            {context_section}
+    {context_section}
 
-            Codice da analizzare (numerato):
-            ```python
-            {code_snippet}
-            ```
-            
-            ⚠️ REGOLE CRITICHE:
-            1. Ignora qualsiasi altro errore presente nelle righe vicine (non marcate).
-            2. Concentrati solo sulla vulnerabilità indicata dai Dati Tecnici.
-            3. Se il "CONTESTO AGGIUNTIVO" mostra che il dato è sanitizzato altrove, segnalalo come Falso Positivo.
+    Code to analyze (numbered):
+    ```python
+    {code_snippet}
+    CRITICAL RULES:
 
-            Genera risposta STRUTTURATA in ITALIANO seguendo ESATTAMENTE questo formato:
+    1. Ignore any other errors present in nearby (unmarked) lines.
 
-            EXPLANATION:
-            [Spiega in 2-3 frasi PERCHÉ la riga {start_line} è vulnerabile. Menziona il tipo di attacco possibile. Se il contesto mitiga il rischio, spiegalo qui.]
+    2. Focus solely on the vulnerability indicated by the Technical Data.
 
-            SUGGESTED_FIX:
-            [Spiega COME correggere la riga {start_line}. Sii specifico.]
-                
+    3. If the "ADDITIONAL CONTEXT" shows that the data is sanitized elsewhere, flag it as a False Positive.
 
-            APPLICABLE_FIX:
-                [REGOLE MANDATORIE  E RISPETTA LA STRUTTURA (IMPORTS, FIX RIPORTANDO IL NOME DELLA) :
-                    1. NO BOILERPLATE: Non includere 'if __name__ == "__main__':", non includere classi o funzioni esterne se non sono l'oggetto del fix.
-                    2. CONTESTO: Restituisci ESCLUSIVAMENTE le righe che sostituiscono la logica vulnerabile. Se la correzione richiede la modifica della firma della funzione o di un decoratore, restituisci l'intero blocco 'def'. Altrimenti, restituisci solo la riga interessata.
-                    4. COMPLETEZZA: Il codice deve essere sintatticamente corretto per Python ma limitato al blocco interessato.
-                    5. NON INCLUDERE ASSOLUTAMENTE COMMENTI O TESTO NON CODICE.
-                    7. NON includere righe di codice che sono già presenti nel file (come chiamate a funzioni o esecuzioni di comandi) a meno che non siano l'oggetto diretto della correzione.
-                    8. Se il fix richiede più righe per una singola riga target, assicurati che non introducano ridondanza con il resto del contesto.
-                    9. Markdown (niente ```): Non includere blocchi di codice markdown (```), restituisci solo il codice puro.
-                    10. SEPARA IMPORT DAL CODICE INSERENDO NELLA SEZIONE IMPORT SOLO GLI IMPORT NECESSARI AL FIX, MA SOLO SE NON SONO GIA' PRESENTI NEL FILE. SE IL FIX PUO' ESSERE APPLICATO SENZA NUOVI IMPORT, LASCIA LA SEZIONE IMPORT VUOTA.]         
-            IMPORTS:
-            [Inserisci qui SOLO gli import necessari per il fix, ma solo se non sono già presenti nel file. Se non servono nuovi import, lascia vuota questa sezione.]
-            [NON INCLUDERE COMMENTI O TESTO NON CODICE, SOLO IMPORT PURI]
-            FIX:
-            [Inserisci qui SOLO le righe di codice che sostituiscono la logica vulnerabile, seguendo le regole sopra. Se la riga vulnerabile è una senza contesto, restituisci solo quella riga corretta.]
-            [NON INCLUDERE COMMENTI O TESTO NON CODICE, SOLO CODICE PURO]
-            CODE_EXAMPLE:
-                 [Inserisci qui un esempio SOLO del codice corretto per la riga {start_line}, ben formattato.]
-              
-            
-            REFERENCES:
-            [1-2 link ufficiali OWASP o documentazione Python]
+    4. Generate a STRUCTURED response in ITALIAN following EXACTLY this format:
 
-            NOTA: Ogni sezione DEVE iniziare con il suo header (EXPLANATION:, ecc.) su una riga separata.
-            """
+    EXPLANATION:
+        [Explain in 2-3 sentences WHY line {start_line} is vulnerable. Mention the possible attack type. If the context mitigates the risk, explain it here.]
+
+    SUGGESTED_FIX:
+        [Explain HOW to fix line {start_line}. Be specific.]
+
+    APPLICABLE_FIX:
+        [MANDATORY RULES AND RESPECT THE STRUCTURE (IMPORTS, FIX REPORTING THE FUNCTION NAME):
+        1. NO BOILERPLATE: Do not include 'if name == "main":', do not include external classes or functions unless they are the subject of the fix.
+        2. CONTEXT: Return EXCLUSIVELY the lines that replace the vulnerable logic. If the fix requires modifying the function signature or a decorator, return the entire 'def' block. Otherwise, return only the affected line.
+        3. COMPLETENESS: The code must be syntactically correct for Python but limited to the affected block.
+        4. ABSOLUTELY DO NOT INCLUDE COMMENTS OR NON-CODE TEXT.
+        5. DO NOT include lines of code that are already present in the file (like function calls or command executions) unless they are the direct subject of the correction.
+        6. If the fix requires multiple lines for a single target line, ensure they do not introduce redundancy with the rest of the context.
+        7. Markdown (no ): Do not include markdown code blocks (), return only pure code.
+        8. SEPARATE IMPORTS FROM CODE BY INSERTING IN THE IMPORTS SECTION ONLY THE IMPORTS NECESSARY FOR THE FIX, BUT ONLY IF THEY ARE NOT ALREADY PRESENT IN THE FILE. IF THE FIX CAN BE APPLIED WITHOUT NEW IMPORTS, LEAVE THE IMPORTS SECTION EMPTY.]
+    IMPORTS:
+        [Insert here ONLY the imports necessary for the fix, but only if they are not already present in the file. If no new imports are needed, leave this section empty.]
+        [DO NOT INCLUDE COMMENTS OR NON-CODE TEXT, PURE IMPORTS ONLY]
+    FIX:
+        [Insert here ONLY the lines of code that replace the vulnerable logic, following the rules above. If the vulnerable line is contextless, return only that corrected line.]
+        [DO NOT INCLUDE COMMENTS OR NON-CODE TEXT, PURE CODE ONLY]
+    CODE_EXAMPLE:
+        [Insert here an example of ONLY the corrected code for line {start_line}, well formatted.]
+
+    REFERENCES:
+        [1-2 official OWASP links or Python documentation]
+
+    NOTE: Each section MUST start with its header (EXPLANATION:, etc.) on a separate line.
+    """
     def _is_valid_python_code(self, code: str) -> bool:
         """Verifica se la stringa è codice Python o semplice testo descrittivo"""
         if not code or len(code.strip()) < 5:
@@ -400,14 +398,16 @@ class BaseAgent(ABC):
             # VALIDAZIONE: Se è testo discorsivo, lo impostiamo a None
             if self._is_valid_python_code(clean_fix):
                 applicable_fix = clean_fix
-                print(f"✅ [BACKEND] Fix validato: {applicable_fix[:30]}...")
+                print(f" [BACKEND] Fix validato: {applicable_fix[:30]}...")
             else:
-                print(f"⚠️ [BACKEND] Fix scartato (rilevato testo discorsivo): {clean_fix[:40]}...")
+                print(f" [BACKEND] Fix scartato (rilevato testo discorsivo): {clean_fix[:40]}...")
                 applicable_fix = None
 
             # Log di debug per vedere cosa stiamo mandando al plugin
-            print(f"DEBUG BACKEND - Fix estratto: {applicable_fix[:50]}...")
-
+            if applicable_fix:
+                print(f"DEBUG BACKEND - Fix estratto: {applicable_fix[:50]}...")
+            else:
+                print("DEBUG BACKEND - Fix estratto: Nessuno (scartato)")
         # 2. ESTRAZIONE DELLE ALTRE SEZIONI
         sections = {
             'explanation': '',
@@ -442,7 +442,7 @@ class BaseAgent(ABC):
                 else:
                     sections[key] = "Nessun contenuto disponibile."
         
-        print(f"🏁 FINE PARSING - Fix trovato: {sections['applicable_fix'] is not None}")
+        print(f" FINE PARSING - Fix trovato: {sections['applicable_fix'] is not None}")
         return sections
 
     def _extract_code_block(self, text: str) -> str:
@@ -500,7 +500,7 @@ class BaseAgent(ABC):
 
         #Limito range a max 2 righe 
         if raw_end_line - start_line > 2:
-            print(f"⚠️  Range troppo ampio ({start_line}-{raw_end_line}), normalizzo a {start_line}-{start_line+1}")
+            print(f" Range troppo ampio ({start_line}-{raw_end_line}), normalizzo a {start_line}-{start_line+1}")
             end_line = start_line + 1
         else:
             end_line = raw_end_line
@@ -518,7 +518,10 @@ class BaseAgent(ABC):
                     urls = re.findall(r'https?://[^\s]+', line)
                     references.extend(urls)
         # 4. Gestione Quick Fix
-        exec_fix = educational_content.get('applicable_fix', '').strip()
+        # 4. Gestione Quick Fix Sicura
+        raw_exec_fix = educational_content.get('applicable_fix')
+        # Se raw_exec_fix è None o stringa vuota, exec_fix diventa None
+        exec_fix = raw_exec_fix.strip() if raw_exec_fix else None
         # 5. Return dell'oggetto Finding
         return Finding(
             line=start_line,

@@ -10,18 +10,18 @@ class FaultDetectionAgent(BaseAgent):
         super().__init__(AnalysisType.FAULT_DETECTION, language)
     
     def get_system_prompt(self) -> str:
-        return f"""Sei un debugger esperto e insegnante di programmazione in {self.language}.
-Il tuo compito è aiutare studenti a identificare e capire bug nel codice. Fallo in italiano ed in inglese
+        return f"""You are an expert debugger and programming teacher in {self.language}.
+Your task is to help students identify and understand bugs in their code. Do this in both Italian and English.
 
-REGOLE FONDAMENTALI:
-1. NON dire mai "consulta la documentazione". DEVI essere tu la documentazione
-2. Spiega COME l'errore si manifesta a runtime
-3. Mostra scenari concreti che causano il bug
-4. Insegna tecniche di debugging
-5. Spiega come prevenire errori simili
-6. Usa esempi con input/output
+FUNDAMENTAL RULES:
+1. NEVER say 'consult the documentation'. YOU must be the documentation.
+2. Explain HOW the error manifests at runtime.
+3. Show concrete scenarios that trigger the bug.
+4. Teach debugging techniques.
+5. Explain how to prevent similar errors.
+6. Use input/output examples.
 
-Focus su:
+Focus on:
 - Null/undefined pointer errors
 - Array/index out of bounds
 - Logic errors (off-by-one, etc.)
@@ -29,9 +29,9 @@ Focus su:
 - Resource leaks (memory, file handles)
 - Infinite loops
 - Type mismatches
-- Exception handling mancante
+- Missing exception handling
 
-Usa un tono paziente e costruttivo. I bug sono opportunità di apprendimento."""
+Use a patient and constructive tone. Bugs are learning opportunities."""
     
     def get_analysis_focus(self) -> str:
         return "Rilevamento Bug e Errori"
@@ -58,54 +58,6 @@ Errori comuni Python:
 - Late binding in closures
 - File handle leaks
 - Exception swallowing (except: pass)"""
-
-
-class JavaScriptFaultDetectionAgent(FaultDetectionAgent):
-    """Agente fault detection per JavaScript"""
-    
-    def __init__(self):
-        super().__init__("javascript")
-    
-    def get_system_prompt(self) -> str:
-        base_prompt = super().get_system_prompt()
-        return base_prompt + """
-
-Errori comuni JavaScript:
-- TypeError (undefined is not a function)
-- ReferenceError
-- Type coercion bugs (== vs ===)
-- Async/await error handling
-- Promise rejection handling
-- Callback hell e race conditions
-- Memory leaks (event listeners)
-- Scope issues (var hoisting)
-- this binding errors
-- NaN propagation"""
-
-
-class JavaFaultDetectionAgent(FaultDetectionAgent):
-    """Agente fault detection per Java"""
-    
-    def __init__(self):
-        super().__init__("java")
-    
-    def get_system_prompt(self) -> str:
-        base_prompt = super().get_system_prompt()
-        return base_prompt + """
-
-Errori comuni Java:
-- NullPointerException
-- ArrayIndexOutOfBoundsException
-- ClassCastException
-- ConcurrentModificationException
-- Resource leaks (streams, connections)
-- Integer overflow
-- Floating point comparison
-- Deadlocks
-- Thread safety issues
-- Unchecked exceptions non gestite"""
-
-
 # ==========================================
 # FACTORY FUNCTION
 # ==========================================
@@ -118,10 +70,6 @@ def get_fault_agent(language: str) -> FaultDetectionAgent:
     
     if language_lower == 'python':
         return PythonFaultDetectionAgent()
-    elif language_lower in ['javascript', 'typescript']:
-        return JavaScriptFaultDetectionAgent()
-    elif language_lower == 'java':
-        return JavaFaultDetectionAgent()
     else:
         # Default: agente generico
         return FaultDetectionAgent(language)

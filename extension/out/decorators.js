@@ -259,15 +259,6 @@ class DiagnosticDecorator {
             default: return 'Analisi';
         }
     }
-    /*
-      private getIconForType(type: AnalysisType): string {
-        switch (type) {
-          case AnalysisType.SECURITY: return '🔒';
-          case AnalysisType.BEST_PRACTICES: return '✨';
-          case AnalysisType.FAULT_DETECTION: return '🐛';
-          default: return '💡';
-        }
-      }*/
     clearDecorations() {
         const editor = vscode.window.activeTextEditor;
         if (editor) {

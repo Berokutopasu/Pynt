@@ -62,11 +62,11 @@ def validate_settings():
 
     if not has_groq :
         raise ValueError(
-            "❌ ERRORE CONFIGURAZIONE:\n"
+            " ERRORE CONFIGURAZIONE:\n"
             "Non è stata trovata nessuna API Key valida.\n"
             "Inserisci nel file .env:\n"
             "GROQ_API_KEYS=gsk_key1,gsk_key2 (Consigliato)\n"
         )
     
-    print(f"✅ Configurazione OK. Trovate {len(settings.EFFECTIVE_GROQ_KEYS)} chiavi Groq.")
+    print(f" Configurazione OK. Trovate {len(settings.EFFECTIVE_GROQ_KEYS)} chiavi Groq.")
     return True

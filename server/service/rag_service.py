@@ -28,10 +28,10 @@ class RAGService:
         self.vector_store = None #indice vettoriale in memoria
         
         # --- MODIFICA 2: Inizializzazione Modello Locale ---
-        print("🧠 RAG: Caricamento modello di embedding locale (HuggingFace)...")
+        print("RAG: Caricamento modello di embedding locale (HuggingFace)...")
         # 'all-MiniLM-L6-v2' è piccolo, veloce e molto accurato per il codice
         self.embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")# istruzione per caricare il modello di embedding locale
-        print("🧠 RAG: Modello locale pronto!")
+        print(" RAG: Modello locale pronto!")
         # ---------------------------------------------------
         
         self.current_project_path = None
@@ -43,10 +43,10 @@ class RAGService:
         """
         # Evita re-indicizzazione inutile
         if self.current_project_path == project_path and self.vector_store:
-            print(f"✅ RAG: Progetto {project_path} già in memoria.")
+            print(f" RAG: Progetto {project_path} già in memoria.")
             return
 
-        print(f"🔄 RAG: Lettura file da {project_path}...")
+        print(f"RAG: Lettura file da {project_path}...")
         
         glob_pattern = "**/*.py"
         lang_enum = Language.PYTHON
@@ -71,7 +71,7 @@ class RAGService:
             docs = loader.load()#legge fisicamente i file e li carica in memoria come documenti per l'indicizzazione
 
             if not docs:
-                print("⚠️ RAG: Nessun file di codice trovato nella cartella.")
+                print(" RAG: Nessun file di codice trovato nella cartella.")
                 return
 
             # 2. Splitting: divvide i file in chunk più piccoli (1000 token con 100 di overlap) per migliorare la precisione del recupero
@@ -88,10 +88,10 @@ class RAGService:
             self.vector_store = FAISS.from_documents(splits, self.embeddings)#crea l'indice vettoriale in memoria usando i chunk e gli embeddings locali
             
             self.current_project_path = project_path
-            print(f"✅ RAG: Indicizzazione completata con successo!")
+            print(f" RAG: Indicizzazione completata con successo!")
 
         except Exception as e:
-            print(f"❌ RAG Error: {e}")
+            print(f"RAG Error: {e}")
             import traceback
             traceback.print_exc()
 
@@ -117,5 +117,5 @@ class RAGService:
             
             return "\n----------------\n".join(context_parts)
         except Exception as e:
-            print(f"❌ RAG Retrieval Error: {e}")
+            print(f"RAG Retrieval Error: {e}")
             return ""

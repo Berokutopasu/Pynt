@@ -37,7 +37,7 @@ class SemgrepAnalyzer:
                         self.semgrep_path = p
                         break
         if not self.semgrep_path:
-            raise RuntimeError("❌ Semgrep non trovato. Assicurati di averlo installato nel venv.")
+            raise RuntimeError(" Semgrep non trovato. Assicurati di averlo installato nel venv.")
     
     def analyze(self, code: str, language: str, analysis_type: AnalysisType, project_path: str = None, filename: str = None, extra_targets: List[str] = None) -> List[SemgrepResult]:
         """
@@ -93,7 +93,7 @@ class SemgrepAnalyzer:
             path_mapping[scan_path_normalized] = real_path
             
             print(f"\n{'='*70}")
-            print(f"📄 [Semgrep] MAIN FILE:")
+            print(f" [Semgrep] MAIN FILE:")
             print(f"   Filename:  {base_filename}")
             print(f"   Scan:      {scan_path_normalized}")
             print(f"   Real:      {real_path}")
@@ -101,7 +101,7 @@ class SemgrepAnalyzer:
 
             # 4. AGGIUNTA FILE EXTRA (da RAG/dipendenze)
             if extra_targets:
-                print(f"\n🔗 [Semgrep] EXTRA FILES ({len(extra_targets)}):")
+                print(f"\n [Semgrep] EXTRA FILES ({len(extra_targets)}):")
                 for idx, extra in enumerate(extra_targets, 1):
                     if extra and os.path.exists(extra):
                         abs_extra = os.path.normpath(os.path.abspath(extra))
@@ -119,7 +119,7 @@ class SemgrepAnalyzer:
                 print(f"{'='*70}")
 
             # 5. ESECUZIONE SEMGREP
-            print(f"\n🔍 [Semgrep] Scansione di {len(targets_to_scan)} file...")
+            print(f"\n [Semgrep] Scansione di {len(targets_to_scan)} file...")
             print(f"   Configs: {', '.join(config_list[:3])}{'...' if len(config_list) > 3 else ''}")
             
             results = self._run_semgrep(targets_to_scan, config_list)
@@ -127,7 +127,7 @@ class SemgrepAnalyzer:
 
             # 6. DEBUG RISULTATI RAW
             print(f"\n{'='*70}")
-            print(f"📊 [Semgrep] RISULTATI RAW ({len(parsed_results)}):")
+            print(f" [Semgrep] RISULTATI RAW ({len(parsed_results)}):")
             for idx, res in enumerate(parsed_results, 1):
                 print(f"   [{idx}] {res.path}")
                 print(f"        → {res.check_id}")
@@ -135,7 +135,7 @@ class SemgrepAnalyzer:
             print(f"{'='*70}")
 
             # 7. RIMAPPING DEI PATH
-            print(f"\n🔄 [Path Mapping] Correzione path...")
+            print(f"\n [Path Mapping] Correzione path...")
             print(f"   Mapping disponibili: {len(path_mapping)}")
             
             for res in parsed_results:
@@ -152,9 +152,9 @@ class SemgrepAnalyzer:
                     res.path = mapped_path
                     
                     if mapped_path == real_path:
-                        print(f"   ✅ MAIN -> {mapped_path}")
+                        print(f"    MAIN -> {mapped_path}")
                     else:
-                        print(f"   ✅ EXTRA -> {mapped_path}")
+                        print(f"    EXTRA -> {mapped_path}")
                 else:
                     # Fallback: controlla se il basename corrisponde
                     found = False
@@ -163,23 +163,23 @@ class SemgrepAnalyzer:
                     for scan_p, real_p in path_mapping.items():
                         if os.path.basename(scan_p) == res_basename:
                             res.path = real_p
-                            print(f"   🔧 BASENAME MATCH -> {real_p}")
+                            print(f"    BASENAME MATCH -> {real_p}")
                             found = True
                             break
                     
                     if not found:
                         # Ultimo fallback: usa il path reale del main file
                         res.path = real_path
-                        print(f"   ⚠️  FALLBACK -> {real_path}")
+                        print(f"     FALLBACK -> {real_path}")
 
-            print(f"\n✅ [Semgrep] Analisi completata: {len(parsed_results)} risultati")
+            print(f"\n [Semgrep] Analisi completata: {len(parsed_results)} risultati")
             
             # 8. SUMMARY PER FILE
             file_counts = {}
             for res in parsed_results:
                 file_counts[res.path] = file_counts.get(res.path, 0) + 1
             
-            print(f"\n📈 [Summary] Problemi per file:")
+            print(f"\n [Summary] Problemi per file:")
             for fpath, count in file_counts.items():
                 print(f"   - {os.path.basename(fpath)}: {count} issue(s)")
                 print(f"     Path completo: {fpath}")
@@ -188,7 +188,7 @@ class SemgrepAnalyzer:
             return parsed_results
 
         except Exception as e:
-            print(f"❌ Errore Analisi: {e}")
+            print(f"Errore Analisi: {e}")
             import traceback
             traceback.print_exc()
             return []
@@ -197,9 +197,9 @@ class SemgrepAnalyzer:
             if temp_dir and os.path.exists(temp_dir):
                 try: 
                     shutil.rmtree(temp_dir)
-                    print(f"🗑️  [Cleanup] Rimossa directory temp: {temp_dir}")
+                    print(f"  [Cleanup] Rimossa directory temp: {temp_dir}")
                 except Exception as e:
-                    print(f"⚠️  [Cleanup] Errore rimozione temp dir: {e}")
+                    print(f"  [Cleanup] Errore rimozione temp dir: {e}")
 
     def _resolve_config(self, language: str, analysis_type: AnalysisType) -> List[str]:
         configs = []
@@ -285,13 +285,13 @@ class SemgrepAnalyzer:
             return json.loads(result.stdout)
             
         except subprocess.TimeoutExpired:
-            print("⚠️ Semgrep Timeout")
+            print(" Semgrep Timeout")
             return {"results": []}
         except json.JSONDecodeError as je:
-            print(f"⚠️ Errore decodifica JSON Semgrep: {je}")
+            print(f" Errore decodifica JSON Semgrep: {je}")
             return {"results": []}
         except Exception as e:
-            print(f"⚠️ Errore subprocess: {e}")
+            print(f" Errore subprocess: {e}")
             return {"results": []}
     
     def _parse_results(self, semgrep_output: Dict) -> List[SemgrepResult]:
