@@ -306,7 +306,7 @@ class BaseAgent(ABC):
                 """
 
             # --- 2. COSTRUZIONE DEL PROMPT FINALE ---
-                return f"""You are a Security Engineer explaining vulnerabilities to students.
+            return f"""You are a Security Engineer explaining vulnerabilities to students.
     EXCLUSIVELY analyze the line marked with "[TARGET LINE]". Evaluate if it is a false positive. 
 
     Technical Data:
@@ -350,7 +350,7 @@ class BaseAgent(ABC):
         [DO NOT INCLUDE COMMENTS OR NON-CODE TEXT, PURE IMPORTS ONLY]
     FIX:
         [Insert here ONLY the lines of code that replace the vulnerable logic, following the rules above. If the vulnerable line is contextless, return only that corrected line.]
-        [DO NOT INCLUDE COMMENTS OR NON-CODE TEXT, PURE CODE ONLY]
+        [DO NOT INCLUDE COMMENTS OR NON-CODE TEXT, PURE CODE ONLY, DO NOT INCLUDE IMPORT IN THIS SECTION, FOLLOW THE RIGHT INDENTATION RULES].
     CODE_EXAMPLE:
         [Insert here an example of ONLY the corrected code for line {start_line}, well formatted.]
 
