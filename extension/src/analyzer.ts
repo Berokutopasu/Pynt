@@ -43,7 +43,7 @@ export class CodeAnalyzer {
       const controller = new AbortController();
       
       try {
-        console.log(`🚀 [Analyzer] Richiesta partita verso: ${url}`); // LOG 1
+        console.log(` [Analyzer] Richiesta partita verso: ${url}`); // LOG 1
         const payload = {
         code: request.code,
         language: request.language,
@@ -68,21 +68,21 @@ export class CodeAnalyzer {
         const rawData = await response.json() as any;
 
         // LOGGA TUTTO QUELLO CHE ARRIVA!
-        console.log(`📦 [Analyzer] Risposta RAW da ${type}:`, JSON.stringify(rawData, null, 2));
+        console.log(` [Analyzer] Risposta RAW da ${type}:`, JSON.stringify(rawData, null, 2));
         
         if (rawData.findings && rawData.findings.length > 0) {
             const primo = rawData.findings[0];
-            console.log("🔍 [ANALISI CAMPI] Controllo il primo finding:");
+            console.log(" [ANALISI CAMPI] Controllo il primo finding:");
             console.log("   - Chiavi presenti:", Object.keys(primo));
-            console.log("   - C'è 'educationalExplanation'?", primo.educationalExplanation !== undefined ? "✅ SÌ" : "❌ NO (Probabile snake_case?)");
-            console.log("   - C'è 'educational_explanation'?", primo.educational_explanation !== undefined ? "⚠️ SÌ (Eccolo!)" : "❌ NO");
+            console.log("   - C'è 'educationalExplanation'?", primo.educationalExplanation !== undefined ? " SÌ" : " NO (Probabile snake_case?)");
+            console.log("   - C'è 'educational_explanation'?", primo.educational_explanation !== undefined ? " SÌ (Eccolo!)" : " NO");
         }
         // ---------------------------------------------
 
         return rawData as AnalysisResponse;
 
       } catch (error) {
-        console.error(`❌ [Analyzer] Errore Fetch:`, error);
+        console.error(` [Analyzer] Errore Fetch:`, error);
         throw error;
       }
     }

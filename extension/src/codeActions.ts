@@ -37,7 +37,7 @@ export class PyntCodeActionProvider implements vscode.CodeActionProvider {
             if (finding) {
                 // Crea l'azione "Apri Spiegazione Completa"
                 const action = new vscode.CodeAction(
-                    `📝 Pynt: Leggi spiegazione completa`, 
+                    ` Pynt: Leggi spiegazione completa`, 
                     vscode.CodeActionKind.QuickFix
                 );
                 

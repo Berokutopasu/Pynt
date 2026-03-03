@@ -55,7 +55,7 @@ class PyntCodeActionProvider {
             const finding = fileFindings.find(f => (f.line - 1) === diagnostic.range.start.line);
             if (finding) {
                 // Crea l'azione "Apri Spiegazione Completa"
-                const action = new vscode.CodeAction(`📝 Pynt: Leggi spiegazione completa`, vscode.CodeActionKind.QuickFix);
+                const action = new vscode.CodeAction(` Pynt: Leggi spiegazione completa`, vscode.CodeActionKind.QuickFix);
                 // Collega l'azione al comando che apre il pannello
                 action.command = {
                     command: 'pynt.openDetailsPanel',

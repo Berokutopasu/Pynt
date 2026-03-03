@@ -148,7 +148,7 @@ function activate(context) {
             return;
         try {
             await vscode.env.clipboard.writeText(text);
-            vscode.window.showInformationMessage('✅ Analisi copiata negli appunti!');
+            vscode.window.showInformationMessage(' Analisi copiata negli appunti!');
         }
         catch (error) {
             vscode.window.showErrorMessage('Impossibile copiare il testo.');
@@ -313,7 +313,7 @@ async function analyzeDocument(document, analysisType) {
         else {
             statusBarItem.text = `$(check) Pynt: Clean`;
             statusBarItem.tooltip = `Nessun problema trovato.`;
-            vscode.window.setStatusBarMessage(`✅ Pynt: Analisi completata. Clean!`, 4000);
+            vscode.window.setStatusBarMessage(` Pynt: Analisi completata. Clean!`, 4000);
         }
     }
     catch (error) {
