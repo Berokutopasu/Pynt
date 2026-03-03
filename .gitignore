@@ -1,1 +1,13 @@
 .env
+tmpclaude-3165-cwd
+tmpclaude-4410-cwd
+nul
+/venv
+/server/agents/__pycache__
+/server/__pycache__
+/server/analyzers/__pycache__
+/server/config/__pycache__
+/server/models/__pycache__
+/server/service/__pycache__
+/extension/out
+/extension/out

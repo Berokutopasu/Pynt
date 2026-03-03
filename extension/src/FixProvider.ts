@@ -51,19 +51,34 @@ export class PyntFixProvider implements vscode.CodeActionProvider {
 
                         // Se la riga nel file inizia con uno dei prefissi del fix, è ridondante
                         const isRedundant = fixPrefixes.some(prefix => nextLineText.startsWith(prefix));
-                        
+
                         if (isRedundant) {
                             linesToOverwrite = i;
                         } else {
                             // Se troviamo una riga che NON c'entra nulla, ci fermiamo per non cancellare troppo
-                            break; 
+                            break;
                         }
                     }
                 }
 
-                // Range che "mangia" la riga corrente + quelle ridondanti identificate
+                // Controlla le 3 righe PRECEDENTI per rimuovere righe ridondanti sopra la diagnostica
+                let startOffset = 0;
+                for (let i = 1; i <= 3; i++) {
+                    const prevIdx = lineIndex - i;
+                    if (prevIdx < 0) break;
+                    const prevLineText = document.lineAt(prevIdx).text.trim();
+                    if (!prevLineText || prevLineText.startsWith('#')) break;
+                    const isRedundant = fixPrefixes.some(prefix => prevLineText.startsWith(prefix));
+                    if (isRedundant) {
+                        startOffset = i;
+                    } else {
+                        break;
+                    }
+                }
+
+                // Range che "mangia" le righe ridondanti sopra + la riga corrente + quelle ridondanti sotto
                 const replaceRange = new vscode.Range(
-                    lineObj.range.start,
+                    document.lineAt(lineIndex - startOffset).range.start,
                     document.lineAt(lineIndex + linesToOverwrite).range.end
                 );
 
@@ -97,28 +112,55 @@ export class PyntFixProvider implements vscode.CodeActionProvider {
         return actions;
     }
 
+
     private manualParse(raw: string) {
+
+        "Questo è un parser manuale per estrarre le sezioni IMPORTS e FIX dal testo grezzo, senza usare regex complesse. Si basa su keyword e delimitatori semplici."
+        
         const cleanRaw = raw.replace(/```python|```py|```/gi, '').trim();
         const impMatch = cleanRaw.match(/IMPORTS:([\s\S]*?)(?=FIX:|$)/i);
         const fixMatch = cleanRaw.match(/FIX:([\s\S]*?)(?=CODE_EXAMPLE:|REFERENCES:|$)/i);
-        let imports = impMatch ? impMatch[1].trim() : "";
-        let code = fixMatch ? fixMatch[1].trim() : "";
+        let imports = impMatch ? impMatch[1].trim() : ""; // Sezione "IMPORTS" è opzionale, quindi potrebbe non esserci
+        let code = fixMatch ? fixMatch[1].trim() : ""; //Idem per FIX, trim per rimuovere spazi vuoti indesiderati
         
         if (!code && !imports && cleanRaw.length > 0) {
             const lines = cleanRaw.split('\n');
             imports = lines.filter(l => l.trim().startsWith('import') || l.trim().startsWith('from')).join('\n');
             code = lines.filter(l => l.trim().length > 0 && !l.trim().startsWith('import') && !l.trim().startsWith('from')).join('\n');
         }
+
+        // Hoisting: estrae import annidati nel corpo del codice e li porta a livello modulo
+        if (code) {
+            const hoisted: string[] = [];
+            const remaining: string[] = [];
+            for (const line of code.split('\n')) {
+                const trimmed = line.trim();
+                if (trimmed.startsWith('import ') || trimmed.startsWith('from ')) {
+                    hoisted.push(trimmed);
+                } else {
+                    remaining.push(line);
+                }
+            }
+            if (hoisted.length > 0) {
+                imports = [imports, ...hoisted].filter(s => s.trim()).join('\n');
+                code = remaining.join('\n').trim();
+            }
+        }
+
         return { imports, code };
     }
 
+    // Questa funzione cerca il simbolo più interno (funzione o metodo) che contiene l'errore, per sostituirlo completamente con il fix. 
+    // Se non trova nulla, ritorna null e il fix verrà applicato in modalità "lineare".
     private async findEnclosingSymbolRange(document: vscode.TextDocument, range: vscode.Range): Promise<vscode.Range | null> {
         try {
-            const symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>('vscode.executeDocumentSymbolProvider', document.uri);
+            // Ottiene la lista dei simboli (funzioni, classi, ecc.) nel documento
+            const symbols = await vscode.commands.executeCommand<vscode.DocumentSymbol[]>('vscode.executeDocumentSymbolProvider', document.uri); 
             if (!symbols) return null;
-            const search = (syms: vscode.DocumentSymbol[]): vscode.Range | null => {
-                for (const s of syms) {
-                    if (s.range.contains(range)) {
+            // Funzione ricorsiva per cercare il simbolo più interno che contiene l'errore
+            const search = (syms: vscode.DocumentSymbol[]): vscode.Range | null => { 
+                for (const s of syms) { // Controlla se l'errore è dentro il range del simbolo
+                    if (s.range.contains(range)) { // Se è una funzione o un metodo, ritorna il suo range per sovrascriverlo completamente
                         if (s.kind === vscode.SymbolKind.Function || s.kind === vscode.SymbolKind.Method) return s.range;
                         if (s.children) {
                             const res = search(s.children);

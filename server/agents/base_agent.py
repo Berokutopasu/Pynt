@@ -306,7 +306,7 @@ class BaseAgent(ABC):
                 """
 
             # --- 2. COSTRUZIONE DEL PROMPT FINALE ---
-                return f"""You are a Security Engineer explaining vulnerabilities to students.
+            return f"""You are a Security Engineer explaining vulnerabilities to students.
     EXCLUSIVELY analyze the line marked with "[TARGET LINE]". Evaluate if it is a false positive. 
 
     Technical Data:
@@ -348,9 +348,12 @@ class BaseAgent(ABC):
     IMPORTS:
         [Insert here ONLY the imports necessary for the fix, but only if they are not already present in the file. If no new imports are needed, leave this section empty.]
         [DO NOT INCLUDE COMMENTS OR NON-CODE TEXT, PURE IMPORTS ONLY]
+        [Preserve the business logic of the file; do not add imports that are not strictly necessary for the fix.]
     FIX:
         [Insert here ONLY the lines of code that replace the vulnerable logic, following the rules above. If the vulnerable line is contextless, return only that corrected line.]
-        [DO NOT INCLUDE COMMENTS OR NON-CODE TEXT, PURE CODE ONLY]
+        [PRESERVE THE BUSINESS LOGIC, TRY TO MINIMIZE THE CHANGES TO THE ORIGINAL CODE, RETURN ONLY THE NECESSARY LINES FOR THE FIX, AVOID REDUNDANCY WITH THE CONTEXT, AND DO NOT INTRODUCE UNNECESSARY NEW IMPORTS. (e.g if I use MySQL in the file, do not change the database connection logic, just fix the vulnerable line, and if I need to import a sanitization function, only import that function, not the entire library)]
+        [DO NOT INCLUDE COMMENTS OR NON-CODE TEXT, PURE CODE ONLY, RESPECT THE INDENTATION OF THE ORIGINAL CODE. If the fix requires changing the function signature, return the entire function block with the new signature and body.]
+        [If the fix includes import statements, they should be included in the IMPORTS section, not here.]
     CODE_EXAMPLE:
         [Insert here an example of ONLY the corrected code for line {start_line}, well formatted.]
 
