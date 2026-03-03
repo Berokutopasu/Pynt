@@ -348,13 +348,15 @@ class BaseAgent(ABC):
         6. If the fix requires multiple lines for a single target line, ensure they do not introduce redundancy with the rest of the context.
         7. Markdown (no ): Do not include markdown code blocks (), return only pure code.
         8. SEPARATE IMPORTS FROM CODE BY INSERTING IN THE IMPORTS SECTION ONLY THE IMPORTS NECESSARY FOR THE FIX, BUT ONLY IF THEY ARE NOT ALREADY PRESENT IN THE FILE. IF THE FIX CAN BE APPLIED WITHOUT NEW IMPORTS, LEAVE THE IMPORTS SECTION EMPTY.]
-    IMPORTS:
+     IMPORTS:
         [Insert here ONLY the imports necessary for the fix, but only if they are not already present in the file. If no new imports are needed, leave this section empty.]
         [DO NOT INCLUDE COMMENTS OR NON-CODE TEXT, PURE IMPORTS ONLY]
         [Preserve the business logic of the file; do not add imports that are not strictly necessary for the fix.]
     FIX:
         [Insert here ONLY the lines of code that replace the vulnerable logic, following the rules above. If the vulnerable line is contextless, return only that corrected line.]
-        [DO NOT INCLUDE COMMENTS OR NON-CODE TEXT, PURE CODE ONLY]
+        [PRESERVE THE BUSINESS LOGIC, TRY TO MINIMIZE THE CHANGES TO THE ORIGINAL CODE, DO NOT INTRODUCE UNNECESSARY NEW IMPORTS. (e.g if I use MySQL in the file, do not change the database connection logic, just fix the vulnerable line, and if I need to import a sanitization function, only import that function, not the entire library)]
+        [DO NOT INCLUDE COMMENTS OR NON-CODE TEXT, PURE CODE ONLY, Ensure correct Python indentation! If the fix requires changing the function signature, return the entire function block with the new signature and body.]
+        [If the fix includes import statements, they should be included in the IMPORTS section, not here.]
     CODE_EXAMPLE:
         [Insert here an example of ONLY the corrected code for line {start_line}, well formatted.]
 
