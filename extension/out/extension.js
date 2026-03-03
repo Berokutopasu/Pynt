@@ -246,6 +246,9 @@ async function analyzeDocument(document, analysisType) {
         // Mappa temporanea per raggruppare i Diagnostic per file
         const diagMap = new Map();
         for (const finding of response.findings) {
+            // Salta finding esplicitamente marcati come falsi positivi dall'LLM
+            if (finding.isFalsePositive)
+                continue;
             // A. Identifica il file giusto
             let targetUri;
             if (finding.file_path) {

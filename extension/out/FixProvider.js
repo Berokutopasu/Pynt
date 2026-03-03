@@ -54,7 +54,22 @@ class PyntFixProvider {
         const edit = new vscode.WorkspaceEdit();
         if (code) {
             if (isFunctionFix && symbolRange) {
-                edit.replace(document.uri, symbolRange, code);
+                // Preserva i decorator originali (es. @app.route) che il symbolRange include
+                // ma che il codice generato dall'LLM non riporta
+                const decorators = [];
+                for (let l = symbolRange.start.line; l <= symbolRange.end.line; l++) {
+                    const lineText = document.lineAt(l).text.trim();
+                    if (lineText.startsWith('@')) {
+                        decorators.push(document.lineAt(l).text);
+                    }
+                    else if (lineText.startsWith('def ') || lineText.startsWith('async def ')) {
+                        break;
+                    }
+                }
+                const codeWithDecorators = decorators.length > 0
+                    ? decorators.join('\n') + '\n' + code
+                    : code;
+                edit.replace(document.uri, symbolRange, codeWithDecorators);
             }
             else {
                 const lineIndex = diagnostic.range.start.line;
@@ -62,6 +77,13 @@ class PyntFixProvider {
                 const indentation = lineObj.text.substring(0, lineObj.firstNonWhitespaceCharacterIndex);
                 // --- LOGICA DI RIDONDANZA GENERICA ---
                 const fixLines = code.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+                // Preserva l'indentazione relativa per l'output finale
+                const fixRawLines = code.split('\n').filter(l => l.trim().length > 0);
+                const baseIndent = fixRawLines.reduce((min, l) => {
+                    const len = l.match(/^(\s*)/)?.[1].length ?? 0;
+                    return Math.min(min, len);
+                }, Infinity);
+                const normalizedBase = isFinite(baseIndent) ? baseIndent : 0;
                 // Estraggono i prefissi del fix (es. "query =" o "cursor.execute")
                 const fixPrefixes = fixLines.map(line => {
                     const firstPart = line.split(/[(\s=]/)[0]; // Prende la parola prima di '(', '=' o spazio
@@ -105,7 +127,7 @@ class PyntFixProvider {
                 }
                 // Range che "mangia" le righe ridondanti sopra + la riga corrente + quelle ridondanti sotto
                 const replaceRange = new vscode.Range(document.lineAt(lineIndex - startOffset).range.start, document.lineAt(lineIndex + linesToOverwrite).range.end);
-                const indentedCode = fixLines.map(l => indentation + l).join('\n');
+                const indentedCode = fixRawLines.map(l => indentation + l.substring(normalizedBase)).join('\n');
                 edit.replace(document.uri, replaceRange, indentedCode);
             }
         }

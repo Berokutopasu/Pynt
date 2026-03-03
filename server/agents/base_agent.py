@@ -329,6 +329,9 @@ class BaseAgent(ABC):
 
     4. Generate a STRUCTURED response in ITALIAN following EXACTLY this format:
 
+    FALSE_POSITIVE:
+        [true if the finding is a false positive (e.g., data is already sanitized, the rule does not apply in this context), false otherwise. Answer with only 'true' or 'false'.]
+
     EXPLANATION:
         [Explain in 2-3 sentences WHY line {start_line} is vulnerable. Mention the possible attack type. If the context mitigates the risk, explain it here.]
 
@@ -351,8 +354,8 @@ class BaseAgent(ABC):
         [Preserve the business logic of the file; do not add imports that are not strictly necessary for the fix.]
     FIX:
         [Insert here ONLY the lines of code that replace the vulnerable logic, following the rules above. If the vulnerable line is contextless, return only that corrected line.]
-        [PRESERVE THE BUSINESS LOGIC, TRY TO MINIMIZE THE CHANGES TO THE ORIGINAL CODE, RETURN ONLY THE NECESSARY LINES FOR THE FIX, AVOID REDUNDANCY WITH THE CONTEXT, AND DO NOT INTRODUCE UNNECESSARY NEW IMPORTS. (e.g if I use MySQL in the file, do not change the database connection logic, just fix the vulnerable line, and if I need to import a sanitization function, only import that function, not the entire library)]
-        [DO NOT INCLUDE COMMENTS OR NON-CODE TEXT, PURE CODE ONLY, RESPECT THE INDENTATION OF THE ORIGINAL CODE. If the fix requires changing the function signature, return the entire function block with the new signature and body.]
+        [PRESERVE THE BUSINESS LOGIC, TRY TO MINIMIZE THE CHANGES TO THE ORIGINAL CODE, DO NOT INTRODUCE UNNECESSARY NEW IMPORTS. (e.g if I use MySQL in the file, do not change the database connection logic, just fix the vulnerable line, and if I need to import a sanitization function, only import that function, not the entire library)]
+        [DO NOT INCLUDE COMMENTS OR NON-CODE TEXT, PURE CODE ONLY, Ensure correct Python indentation! If the fix requires changing the function signature, return the entire function block with the new signature and body.]
         [If the fix includes import statements, they should be included in the IMPORTS section, not here.]
     CODE_EXAMPLE:
         [Insert here an example of ONLY the corrected code for line {start_line}, well formatted.]
@@ -360,7 +363,7 @@ class BaseAgent(ABC):
     REFERENCES:
         [1-2 official OWASP links or Python documentation]
 
-    NOTE: Each section MUST start with its header (EXPLANATION:, etc.) on a separate line.
+    NOTE: Each section MUST start with its header (FALSE_POSITIVE:, EXPLANATION:, etc.) on a separate line.
     """
     def _is_valid_python_code(self, code: str) -> bool:
         """Verifica se la stringa è codice Python o semplice testo descrittivo"""
@@ -416,9 +419,10 @@ class BaseAgent(ABC):
             'explanation': '',
             'suggested_fix': '',
             'code_example': '',
-            'references': ''
+            'references': '',
+            'is_false_positive': False
         }
-        
+
         patterns = {
             'explanation': r'EXPLANATION:\s*(.*?)(?=SUGGESTED_FIX:|APPLICABLE_FIX:|CODE_EXAMPLE:|REFERENCES:|$)',
             'suggested_fix': r'SUGGESTED_FIX:\s*(.*?)(?=APPLICABLE_FIX:|CODE_EXAMPLE:|REFERENCES:|$)',
@@ -433,18 +437,24 @@ class BaseAgent(ABC):
                 # Pulizia aggressiva SOLO per il testo descrittivo
                 sections[key] = re.sub(r'\*\*|\#\#\#?', '', content).strip()
 
+        # Estrazione FALSE_POSITIVE
+        fp_match = re.search(r'FALSE_POSITIVE:\s*(true|false)', response_text, re.IGNORECASE)
+        if fp_match:
+            sections['is_false_positive'] = fp_match.group(1).strip().lower() == 'true'
+            print(f" [PARSER] isFalsePositive: {sections['is_false_positive']}")
+
         # 3. ASSEGNAZIONE FINALE
         # Riassociamo il fix estratto inizialmente
         sections['applicable_fix'] = applicable_fix
 
         # Pulizia fallback per i campi vuoti
         for key in sections:
-            if not sections[key]:
-                if key == 'applicable_fix':
-                    sections[key] = None
-                else:
-                    sections[key] = "Nessun contenuto disponibile."
-        
+            if key in ('applicable_fix', 'is_false_positive'):
+                if sections[key] is None or sections[key] == '':
+                    sections[key] = None if key == 'applicable_fix' else False
+            elif not sections[key]:
+                sections[key] = "Nessun contenuto disponibile."
+
         print(f" FINE PARSING - Fix trovato: {sections['applicable_fix'] is not None}")
         return sections
 
@@ -531,21 +541,22 @@ class BaseAgent(ABC):
             column=start_col,
             endLine=end_line,
             endColumn=end_col,
-            
+
             # Mappa la severity (assicurati che extra contenga 'severity')
             severity=self._map_severity(extra.get('severity', 'INFO')),
-            
+
             message=f"{self.get_analysis_focus()}: {extra.get('message', 'Vulnerabilità rilevata')[:80]}...",
-            
+
             # Contenuto educativo
             educationalExplanation=educational_content.get('explanation', 'N/A'),
             suggestedFix=educational_content.get('suggested_fix', ''),
             executableFix=exec_fix,
             codeExample=educational_content.get('code_example', ''),
-            
+
             references=references if references else None,
             analysisType=self.analysis_type,
             ruleId=semgrep_result.check_id,
+            isFalsePositive=educational_content.get('is_false_positive', False),
             file_path=semgrep_result.path
         )
     
