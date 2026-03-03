@@ -82,7 +82,7 @@ class RAGService:
             )
             splits = splitter.split_documents(docs)
             
-            print(f"🔄 RAG: Creazione indici vettoriali per {len(splits)} chunks...")
+            print(f"RAG: Creazione indici vettoriali per {len(splits)} chunks...")
 
             # 3. Creazione Vector Store (LOCALE, quindi veloce e senza errori 429)
             self.vector_store = FAISS.from_documents(splits, self.embeddings)#crea l'indice vettoriale in memoria usando i chunk e gli embeddings locali
