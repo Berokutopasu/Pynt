@@ -1,0 +1,110 @@
+======================================================================
+PYNT DETECTION METRICS REPORT
+======================================================================
+Generated: 2026-03-03T20:01:34.548557
+
+AGGREGATE METRICS
+----------------------------------------------------------------------
+Precision: 0.000
+Recall: 0.000
+F1 Score: 0.000
+
+True Positives: 0
+False Positives: 0
+False Negatives: 13
+Total Expected: 13
+Total Detected: 0
+
+PER-FILE BREAKDOWN
+----------------------------------------------------------------------
+
+REVIEWED CASES (14):
+
+  aa.py
+    Expected: ['pynt-sql-injection-hardcore']
+    Detected: []
+    FN (missed): ['pynt-sql-injection-hardcore']
+
+  bb.py
+    Expected: []
+    Detected: []
+
+  c1.py
+    Expected: ['pynt-manual-secrets']
+    Detected: []
+    FN (missed): ['pynt-manual-secrets']
+
+  c2.py
+    Expected: ['pynt-manual-secrets']
+    Detected: []
+    FN (missed): ['pynt-manual-secrets']
+
+  c3.py
+    Expected: ['pynt-manual-secrets']
+    Detected: []
+    FN (missed): ['pynt-manual-secrets']
+
+  c6.py
+    Expected: ['pynt-manual-secrets']
+    Detected: []
+    FN (missed): ['pynt-manual-secrets']
+
+  c7.py
+    Expected: ['pynt-manual-secrets']
+    Detected: []
+    FN (missed): ['pynt-manual-secrets']
+
+  c8.py
+    Expected: ['pynt-manual-secrets']
+    Detected: []
+    FN (missed): ['pynt-manual-secrets']
+
+  c9.py
+    Expected: ['pynt-manual-secrets']
+    Detected: []
+    FN (missed): ['pynt-manual-secrets']
+
+  c10.py
+    Expected: ['pynt-manual-secrets']
+    Detected: []
+    FN (missed): ['pynt-manual-secrets']
+
+  c11.py
+    Expected: ['pynt-manual-secrets']
+    Detected: []
+    FN (missed): ['pynt-manual-secrets']
+
+  c13.py
+    Expected: ['pynt-manual-secrets']
+    Detected: []
+    FN (missed): ['pynt-manual-secrets']
+
+  c14.py
+    Expected: ['pynt-manual-secrets']
+    Detected: []
+    FN (missed): ['pynt-manual-secrets']
+
+  c17.py
+    Expected: ['pynt-manual-secrets']
+    Detected: []
+    FN (missed): ['pynt-manual-secrets']
+
+
+DRAFT CASES (5) - Known catalog gaps:
+
+  c4.py
+    Expected: [] (pending catalog expansion)
+
+  c5.py
+    Expected: [] (pending catalog expansion)
+
+  c12.py
+    Expected: [] (pending catalog expansion)
+
+  c15.py
+    Expected: [] (pending catalog expansion)
+
+  c16.py
+    Expected: [] (pending catalog expansion)
+
+======================================================================

@@ -1,0 +1,17 @@
+{
+  "timestamp": "2026-03-03",
+  "total_files": 19,
+  "files_with_expected_rules": 11,
+  "rule_distribution": {
+    "pynt-manual-secrets": 11,
+    "pynt-sql-injection-hardcore": 1,
+    "pynt-debug-execute-check": 0
+  },
+  "catalog_gaps": [
+    "command_injection_via_os_system",
+    "yaml_unsafe_deserialization",
+    "sql_injection_percent_formatting",
+    "hardcoded_secrets_token_variants",
+    "command_injection_via_subprocess"
+  ]
+}
