@@ -127,4 +127,3 @@ def user_profile():
     return jsonify({"status": "User profile retrieved", "profile": profile})
 
 app.run(debug=False)
-

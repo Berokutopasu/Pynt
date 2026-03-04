@@ -1,0 +1,277 @@
+{
+  "metadata": {
+    "created": "2026-03-03",
+    "version": "1.0",
+    "scope": "pynt/Security_test dataset for diagnostic validation",
+    "test_target": "Semgrep detection + LLM diagnostics frontend",
+    "catalog_source": "pynt/server/analyzers/rules/python_rules.yaml",
+    "unit": "file",
+    "labels": ["TP (True Positive)", "coverage", "gap"],
+    "review_process": "Initial automated inference with manual adjudication for ambiguous cases"
+  },
+  "rules_catalog_snapshot": {
+    "pynt-manual-secrets": {
+      "pattern": "Variable with name matching (API_KEY|PASSWORD|AUTH_TOKEN)",
+      "severity": "ERROR",
+      "coverage": "11/19 files"
+    },
+    "pynt-sql-injection-hardcore": {
+      "pattern": ".execute(f\"...\") or .execute(\"...\" + ...)",
+      "severity": "ERROR",
+      "coverage": "1/19 files"
+    },
+    "pynt-debug-execute-check": {
+      "pattern": "*.execute(...) - generic",
+      "severity": "INFO",
+      "coverage": "1/19 files"
+    }
+  },
+  "cases": [
+    {
+      "file": "aa.py",
+      "expected_rule_ids": ["pynt-sql-injection-hardcore"],
+      "review_status": "reviewed",
+      "confidence": "high",
+      "vulnerability_types": ["SQL Injection (CWE-89)"],
+      "notes": "SQL injection via string concatenation in both SELECT and INSERT. Matches pattern hardcoded query + concatenation.",
+      "adjudication_notes": "Clear SQL injection detected on lines 21 and 30.",
+      "evidence_lines": [21, 30]
+    },
+    {
+      "file": "bb.py",
+      "expected_rule_ids": [],
+      "review_status": "reviewed",
+      "confidence": "medium",
+      "vulnerability_types": ["SQL Injection (CWE-89) - but uses % formatting"],
+      "notes": "SQL injection present but uses '%' string formatting, does not match pynt-sql-injection-hardcore pattern (requires f-string or + concatenation). Catalog gap.",
+      "adjudication_notes": "Pattern mismatch with catalog: uses % formatting instead of f-string or concatenation. Consider catalog expansion.",
+      "evidence_lines": []
+    },
+    {
+      "file": "c1.py",
+      "expected_rule_ids": ["pynt-manual-secrets"],
+      "review_status": "reviewed",
+      "confidence": "high",
+      "vulnerability_types": ["Hardcoded Secret (CWE-798)", "Command Injection (CWE-78)", "YAML Deserialization (CWE-502)"],
+      "notes": "Matches pynt-manual-secrets (SECRET_TOKEN). Also contains command injection via os.system f-string (no rule) and YAML FullLoader (no rule).",
+      "adjudication_notes": "SECRET_TOKEN on line 8 matches hardcoded secret pattern. Command injection and YAML deserialization are catalog gaps.",
+      "evidence_lines": [8, 28, 13]
+    },
+    {
+      "file": "c2.py",
+      "expected_rule_ids": ["pynt-manual-secrets"],
+      "review_status": "reviewed",
+      "confidence": "high",
+      "vulnerability_types": ["Hardcoded Secret (CWE-798)", "Command Injection (CWE-78)", "YAML Deserialization (CWE-502)"],
+      "notes": "DB_PASSWORD matches PASSWORD regex. Also has command injection and YAML deserialization.",
+      "adjudication_notes": "DB_PASSWORD pattern match confirmed.",
+      "evidence_lines": []
+    },
+    {
+      "file": "c3.py",
+      "expected_rule_ids": ["pynt-manual-secrets"],
+      "review_status": "reviewed",
+      "confidence": "high",
+      "vulnerability_types": ["Hardcoded Secret (CWE-798)", "Command Injection (CWE-78)", "YAML Deserialization (CWE-502)"],
+      "notes": "ADMIN_PASSWORD matches PASSWORD regex.",
+      "adjudication_notes": "Clear hardcoded password match.",
+      "evidence_lines": []
+    },
+    {
+      "file": "c4.py",
+      "expected_rule_ids": [],
+      "review_status": "draft",
+      "confidence": "medium",
+      "vulnerability_types": ["Command Injection (CWE-78)", "YAML Deserialization (CWE-502)"],
+      "notes": "SUPER_SECRET_KEY does not match PASSWORD/API_KEY/AUTH_TOKEN regex. Has command injection and YAML issues. Catalog limitation.",
+      "adjudication_notes": "Need manual review: Is SUPER_SECRET_KEY a hardcoded secret? Suggest catalog expansion for TOKEN variants.",
+      "evidence_lines": []
+    },
+    {
+      "file": "c5.py",
+      "expected_rule_ids": [],
+      "review_status": "draft",
+      "confidence": "medium",
+      "vulnerability_types": ["Command Injection (CWE-78)", "YAML Deserialization (CWE-502)"],
+      "notes": "STATION_ACCESS_TOKEN does not match PASSWORD/API_KEY/AUTH_TOKEN regex. Catalog gap: missing rule for TOKEN variant and command injection.",
+      "adjudication_notes": "TOKEN variant not covered by pynt-manual-secrets. Catalog gap.",
+      "evidence_lines": []
+    },
+    {
+      "file": "c6.py",
+      "expected_rule_ids": ["pynt-manual-secrets"],
+      "review_status": "reviewed",
+      "confidence": "high",
+      "vulnerability_types": ["Hardcoded Secret (CWE-798)", "Command Injection (CWE-78)", "YAML Deserialization (CWE-502)"],
+      "notes": "LIBRARIAN_PASSWORD matches PASSWORD regex.",
+      "adjudication_notes": "Clear pattern match.",
+      "evidence_lines": []
+    },
+    {
+      "file": "c7.py",
+      "expected_rule_ids": ["pynt-manual-secrets"],
+      "review_status": "reviewed",
+      "confidence": "high",
+      "vulnerability_types": ["Hardcoded Secret (CWE-798)", "Command Injection (CWE-78)", "YAML Deserialization (CWE-502)"],
+      "notes": "LIBRARIAN_PASSWORD matches PASSWORD regex.",
+      "adjudication_notes": "Clear pattern match.",
+      "evidence_lines": []
+    },
+    {
+      "file": "c8.py",
+      "expected_rule_ids": ["pynt-manual-secrets"],
+      "review_status": "reviewed",
+      "confidence": "high",
+      "vulnerability_types": ["Hardcoded Secret (CWE-798)", "Command Injection (CWE-78)", "YAML Deserialization (CWE-502)"],
+      "notes": "LIBRARIAN_PASSWORD matches PASSWORD regex.",
+      "adjudication_notes": "Clear pattern match.",
+      "evidence_lines": []
+    },
+    {
+      "file": "c9.py",
+      "expected_rule_ids": ["pynt-manual-secrets"],
+      "review_status": "reviewed",
+      "confidence": "high",
+      "vulnerability_types": ["Hardcoded Secret (CWE-798)", "Command Injection (CWE-78)", "YAML Deserialization (CWE-502)"],
+      "notes": "LIBRARIAN_PASSWORD matches PASSWORD regex.",
+      "adjudication_notes": "Clear pattern match.",
+      "evidence_lines": []
+    },
+    {
+      "file": "c10.py",
+      "expected_rule_ids": ["pynt-manual-secrets"],
+      "review_status": "reviewed",
+      "confidence": "high",
+      "vulnerability_types": ["Hardcoded Secret (CWE-798)", "Command Injection (CWE-78)", "YAML Deserialization (CWE-502)"],
+      "notes": "LIBRARIAN_PASSWORD matches PASSWORD regex.",
+      "adjudication_notes": "Clear pattern match.",
+      "evidence_lines": []
+    },
+    {
+      "file": "c11.py",
+      "expected_rule_ids": ["pynt-manual-secrets"],
+      "review_status": "reviewed",
+      "confidence": "high",
+      "vulnerability_types": ["Hardcoded Secret (CWE-798)", "Command Injection (CWE-78)", "YAML Deserialization (CWE-502)"],
+      "notes": "ADMIN_PASSWORD matches PASSWORD regex.",
+      "adjudication_notes": "Clear pattern match.",
+      "evidence_lines": []
+    },
+    {
+      "file": "c12.py",
+      "expected_rule_ids": [],
+      "review_status": "draft",
+      "confidence": "medium",
+      "vulnerability_types": ["Command Injection (CWE-78)", "YAML Deserialization (CWE-502)"],
+      "notes": "SECRET_KEY does not match PASSWORD/API_KEY/AUTH_TOKEN regex. Catalog limitation.",
+      "adjudication_notes": "Hardcoded SECRET_KEY not covered by pattern. Suggest catalog expansion.",
+      "evidence_lines": []
+    },
+    {
+      "file": "c13.py",
+      "expected_rule_ids": ["pynt-manual-secrets"],
+      "review_status": "reviewed",
+      "confidence": "high",
+      "vulnerability_types": ["Hardcoded Secret (CWE-798)", "Command Injection (CWE-78)", "YAML Deserialization (CWE-502)"],
+      "notes": "ADMIN_PASSWORD matches PASSWORD regex.",
+      "adjudication_notes": "Clear pattern match.",
+      "evidence_lines": []
+    },
+    {
+      "file": "c14.py",
+      "expected_rule_ids": ["pynt-manual-secrets"],
+      "review_status": "reviewed",
+      "confidence": "high",
+      "vulnerability_types": ["Hardcoded Secret (CWE-798)", "Command Injection (CWE-78)", "YAML Deserialization (CWE-502)"],
+      "notes": "MASTER_PASSWORD matches PASSWORD regex.",
+      "adjudication_notes": "Clear pattern match.",
+      "evidence_lines": []
+    },
+    {
+      "file": "c15.py",
+      "expected_rule_ids": [],
+      "review_status": "draft",
+      "confidence": "medium",
+      "vulnerability_types": ["Command Injection (CWE-78)", "YAML Deserialization (CWE-502)"],
+      "notes": "ADMIN_SECRET does not match PASSWORD/API_KEY/AUTH_TOKEN regex. Catalog limitation.",
+      "adjudication_notes": "Hardcoded ADMIN_SECRET not covered. Catalog gap.",
+      "evidence_lines": []
+    },
+    {
+      "file": "c16.py",
+      "expected_rule_ids": [],
+      "review_status": "draft",
+      "confidence": "medium",
+      "vulnerability_types": ["Command Injection (CWE-78) via subprocess", "YAML Deserialization (CWE-502)"],
+      "notes": "No hardcoded secrets, but has command injection via subprocess.run with shell=True and f-string. Catalog gap.",
+      "adjudication_notes": "Command injection not covered by current rules. subprocess variant requires new rule.",
+      "evidence_lines": []
+    },
+    {
+      "file": "c17.py",
+      "expected_rule_ids": ["pynt-manual-secrets"],
+      "review_status": "reviewed",
+      "confidence": "high",
+      "vulnerability_types": ["Hardcoded Secret (CWE-798)", "Command Injection (CWE-78) via subprocess", "YAML Deserialization (CWE-502)"],
+      "notes": "ADMIN_PASSWORD matches PASSWORD regex. Also has command injection via subprocess.",
+      "adjudication_notes": "Password match confirmed. Command injection not covered.",
+      "evidence_lines": []
+    }
+  ],
+  "gaps_in_catalog": {
+    "command_injection_via_os_system": {
+      "description": "No rule for os.system() with f-strings or string concatenation",
+      "files_affected": ["c1.py", "c2.py", "c3.py", "c4.py", "c5.py", "c6.py", "c7.py", "c8.py", "c9.py", "c10.py", "c11.py", "c12.py", "c13.py", "c14.py", "c15.py"],
+      "suggested_rule_id": "pynt-command-injection-os-system",
+      "priority": "HIGH"
+    },
+    "yaml_unsafe_deserialization": {
+      "description": "No rule for yaml.load with FullLoader or default Loader",
+      "files_affected": ["c1.py", "c2.py", "c3.py", "c4.py", "c5.py", "c6.py", "c7.py", "c8.py", "c9.py", "c10.py", "c11.py", "c12.py", "c13.py", "c14.py", "c15.py", "c16.py", "c17.py"],
+      "suggested_rule_id": "pynt-yaml-unsafe-deserialization",
+      "priority": "HIGH"
+    },
+    "sql_injection_percent_formatting": {
+      "description": "SQL injection with % string formatting not covered (pynt-sql-injection-hardcore only covers + or f-strings)",
+      "files_affected": ["bb.py"],
+      "suggested_rule_id": "pynt-sql-injection-percent-formatting",
+      "priority": "MEDIUM"
+    },
+    "hardcoded_secrets_token_variants": {
+      "description": "pynt-manual-secrets only matches PASSWORD|API_KEY|AUTH_TOKEN. Misses TOKEN, SECRET_KEY, SUPER_SECRET_KEY, etc.",
+      "files_affected": ["c1.py", "c4.py", "c5.py", "c12.py", "c15.py"],
+      "suggested_rule_id": "expand pynt-manual-secrets regex",
+      "priority": "MEDIUM"
+    },
+    "command_injection_via_subprocess": {
+      "description": "No rule for subprocess.run/Popen with shell=True and f-strings",
+      "files_affected": ["c16.py"],
+      "suggested_rule_id": "pynt-command-injection-subprocess",
+      "priority": "MEDIUM"
+    }
+  },
+  "statistics": {
+    "total_files": 19,
+    "files_with_expected_rules": 11,
+    "files_without_expected_rules": 8,
+    "files_with_review_status_reviewed": 12,
+    "files_with_review_status_draft": 7,
+    "rule_distribution": {
+      "pynt-manual-secrets": 11,
+      "pynt-sql-injection-hardcore": 1,
+      "pynt-debug-execute-check": 0
+    },
+    "actual_vulnerabilities_not_covered": {
+      "command_injection": 16,
+      "yaml_deserialization": 17,
+      "sql_injection_variants": 1,
+      "hardcoded_secrets_variants": 5
+    }
+  },
+  "recommendations": {
+    "phase_1_current": "Validate detection on 11 files with pynt-manual-secrets and 1 with pynt-sql-injection-hardcore.",
+    "phase_2_immediate": "Add rules for command injection (os.system + subprocess) and YAML deserialization to increase dataset coverage from 12/19 to 15+/19 files.",
+    "phase_3_future": "Expand hardcoded secrets pattern to cover TOKEN and KEY variants. Add SQL injection variant for % formatting.",
+    "test_execution_plan": "Run diagnostic tests on all 19 files; filter results by review_status==='reviewed' for strict validation; document review_status==='draft' as known limitations awaiting catalog expansion."
+  }
+}
