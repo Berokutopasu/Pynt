@@ -249,7 +249,10 @@ async function analyzeDocument(document: vscode.TextDocument, analysisType: Anal
         const diagMap = new Map<string, vscode.Diagnostic[]>();
 
         for (const finding of response.findings) {
-            
+
+            // Salta finding esplicitamente marcati come falsi positivi dall'LLM
+            if (finding.isFalsePositive) continue;
+
             // A. Identifica il file giusto
             let targetUri: vscode.Uri;
             
