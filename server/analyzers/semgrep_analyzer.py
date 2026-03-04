@@ -93,11 +93,11 @@ class SemgrepAnalyzer:
                 f.write(clean_code.encode('utf-8'))
             # --- INIZIO BLOCCO DEBUG CODICE RICEVUTO ---
             print("\n" + "="*50)
-            print(f"🔍 DEBUG CODICE: Lunghezza {len(code)} caratteri")
+            print(f" DEBUG CODICE: Lunghezza {len(code)} caratteri")
             if len(code) > 0:
-                print(f"🔍 DEBUG CODICE: Inizia con -> {code[:50].replace(chr(10), ' ')}...")
+                print(f"DEBUG CODICE: Inizia con -> {code[:50].replace(chr(10), ' ')}...")
             else:
-                print("❌ ERRORE CRITICO: Il codice ricevuto da VS Code è VUOTO!")
+                print(" ERRORE CRITICO: Il codice ricevuto da VS Code è VUOTO!")
             print("="*50 + "\n")
             # --- FINE BLOCCO DEBUG CODICE RICEVUTO ---
             # Normalizza scan_path per il mapping
@@ -271,9 +271,8 @@ class SemgrepAnalyzer:
 
         cmd.extend(file_paths)
         # --- INIZIO BLOCCO DEBUG COMANDO ---
-        print("\n🔥 DEBUG SEMGREP: Comando in esecuzione:")
+        print("\n DEBUG SEMGREP: Comando in esecuzione:")
         print(f"   {' '.join(cmd)}")
-        print("🔥" + "="*48)
         # --- FINE BLOCCO DEBUG COMANDO ---
         try:
             startupinfo = None
@@ -290,14 +289,14 @@ class SemgrepAnalyzer:
                 startupinfo=startupinfo,
                 shell=False
             )
-            print("\n🔥 DEBUG SEMGREP: Output STDOUT:")
+            print("\n DEBUG SEMGREP: Output STDOUT:")
             if not result.stdout.strip():
                 print("   [STDOUT VUOTO]")
             else:
                 print(f"   {result.stdout[:200]}... (troncato)")
                 
             if result.stderr.strip():
-                print("🔥 DEBUG SEMGREP: Errori in STDERR:")
+                print(" DEBUG SEMGREP: Errori in STDERR:")
                 print(f"   {result.stderr}")
             # --- FINE BLOCCO DEBUG RISULTATO ---
             if not result.stdout.strip():
