@@ -1,0 +1,22 @@
+{
+  "findings": [
+    {
+      "file": "vulnerable_code_sample_1.py",
+      "line": 10,
+      "issue": "SQL Injection",
+      "description": "User input is directly used in SQL query without sanitization."
+    },
+    {
+      "file": "vulnerable_code_sample_2.py",
+      "line": 15,
+      "issue": "Cross-Site Scripting (XSS)",
+      "description": "User input is rendered in the browser without escaping."
+    },
+    {
+      "file": "vulnerable_code_sample_3.py",
+      "line": 20,
+      "issue": "Insecure Direct Object References",
+      "description": "User can access objects they should not have permission to."
+    }
+  ]
+}

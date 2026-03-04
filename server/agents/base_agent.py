@@ -355,7 +355,7 @@ class BaseAgent(ABC):
         6. If the fix requires multiple lines for a single target line, ensure they do not introduce redundancy with the rest of the context.
         7. Markdown (no ): Do not include markdown code blocks (), return only pure code.
         8. SEPARATE IMPORTS FROM CODE BY INSERTING IN THE IMPORTS SECTION ONLY THE IMPORTS NECESSARY FOR THE FIX, BUT ONLY IF THEY ARE NOT ALREADY PRESENT IN THE FILE. IF THE FIX CAN BE APPLIED WITHOUT NEW IMPORTS, LEAVE THE IMPORTS SECTION EMPTY.]
-    IMPORTS:
+     IMPORTS:
         [Insert here ONLY the imports necessary for the fix, but only if they are not already present in the file. If no new imports are needed, leave this section empty.]
         [DO NOT INCLUDE COMMENTS OR NON-CODE TEXT, PURE IMPORTS ONLY]
         [Preserve the business logic of the file; do not add imports that are not strictly necessary for the fix.]
