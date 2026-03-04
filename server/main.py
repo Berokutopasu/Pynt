@@ -310,8 +310,6 @@ async def deep_scan(
                     all_semgrep_findings.extend(findings)
             except Exception as e:
                 print(f"Errore Semgrep ({a_type}): {e}")
-            except Exception as e:
-                print(f"Errore Semgrep ({a_type}): {e}")
 
         # 2. GESTIONE RAG (Ingestione e Recupero Contesto)
         rag_context = ""
@@ -356,7 +354,6 @@ async def deep_scan(
         )
         
         duration = time.time() - start_time
-        
         
         # Restituiamo il pacchetto completo al frontend, incluso il codice originale per la visualizzazione
         return {

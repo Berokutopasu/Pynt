@@ -646,32 +646,31 @@ class BaseAgent(ABC):
         rag_context: str = ""
     ) -> Dict[str, Any]:
         """
-        Analyzes code for vulnerabilities missed by Semgrep (False Negatives).
-        Uses RAG context to detect insecure cross-file data flows.
+        Analyzes code to generate fixes for Semgrep findings AND discovers False Negatives.
         """
-        # Summary of Semgrep findings to instruct LLM to look for SOMETHING ELSE
+        # Formattiamo i risultati di Semgrep per passarli all'LLM
         summary_lines = []
         for f in semgrep_findings:
             line = "?"
             message = ""
+            severity = "INFO"
             
-            # Extract line safely
             if hasattr(f, 'start') and isinstance(f.start, dict):
                 line = f.start.get('line', '?')
             elif hasattr(f, 'line'):
                 line = f.line
                 
-            # Extract message safely
             if hasattr(f, 'extra') and isinstance(f.extra, dict):
                 message = f.extra.get('message', '')
+                severity = f.extra.get('severity', 'INFO')
             elif hasattr(f, 'message'):
                 message = f.message
+                severity = getattr(f, 'severity', 'INFO')
                 
-            summary_lines.append(f"- Line {line}: {f.check_id} ({message})")
+            summary_lines.append(f"- [{str(severity).upper()}] Line {line}: {f.check_id} - {message}")
         
         semgrep_summary = "\n".join(summary_lines)
 
-        # Section dedicated to RAG context (Related code in the project)
         rag_section = ""
         if rag_context:
             rag_section = f"""
@@ -684,11 +683,12 @@ USE this information to understand if input data in the current file has already
 validated elsewhere or if, on the contrary, it comes from unprotected sources identified above.
 """
 
-        # Construction of the prompt for False Negative search
-        prompt = f"""You are a Senior Security Auditor. Your task is to perform a "Deep Analysis" 
-to find FALSE NEGATIVES (vulnerabilities that static tools like Semgrep do not see).
+        # Nuovo Prompt: Richiede esplicitamente di arricchire Semgrep E trovare Falsi Negativi
+        prompt = f"""You are a Senior Security Auditor. Your task is two-fold:
+1. Provide mitigation, explanations, and pure fix code for the vulnerabilities ALREADY FOUND by static analysis (Semgrep).
+2. Perform a "Deep Analysis" to find FALSE NEGATIVES (hidden vulnerabilities that Semgrep missed).
 
-STATIC ANALYSIS RESULTS (Already identified - DO NOT REPEAT):
+STATIC ANALYSIS RESULTS (Semgrep):
 {semgrep_summary if semgrep_summary else "No vulnerabilities found by Semgrep."}
 
 {rag_section}
@@ -699,23 +699,38 @@ SOURCE CODE TO REVIEW:
 ```
 
 ANALYSIS OBJECTIVES:
-1. Find logical vulnerabilities, Broken Access Control (BAC) issues, or complex injections.
-2. Identify if the data flow between the current file and the RAG context generates risks.
-3. Explain why Semgrep did not detect the issue (e.g., limited inter-file analysis).
+1. Add remediation details to Semgrep findings.
+2. Find logical vulnerabilities, Broken Access Control (BAC), or flow issues missed by Semgrep.
+3. Explain why Semgrep missed the hidden vulnerabilities.
 
 FORMATTING INSTRUCTIONS:
 Respond EXCLUSIVELY in JSON format with the following structure:
 {{
-    "vulnerabilities": [
+    "semgrep_vulnerabilities": [
+        {{
+            "title": "Rule ID or short title based on Semgrep result",
+            "line": "Specific line number",
+            "severity": "CRITICAL/HIGH/MEDIUM/LOW",
+            "description": "Explanation of the vulnerability found by Semgrep.",
+            "remediation": {{
+                "explanation": "Detailed explanation of the proposed solution.",
+                "imports": "Necessary imports for the fix. Leave empty if not needed.",
+                "fix_code": "PURE CODE ONLY - The corrected logic.",
+                "references": ["Link to OWASP or official documentation"]
+            }}
+        }}
+    ],
+    "hidden_vulnerabilities": [
         {{
             "title": "Short title",
             "line": "Specific line number",
             "severity": "CRITICAL/HIGH/MEDIUM/LOW",
-            "description": "Technical explanation of why it is a False Negative and how it can be exploited.",
+            "description": "Technical explanation of the hidden vulnerability.",
+            "why_semgrep_missed": "Detailed explanation of why Semgrep missed this vulnerability.",
             "remediation": {{
                 "explanation": "Detailed explanation of the proposed solution.",
-                "imports": "Necessary imports for the fix (e.g., 'import bleach'). Leave empty if not needed.",
-                "fix_code": "PURE CODE ONLY - The corrected logic that replaces the vulnerable one.",
+                "imports": "Necessary imports for the fix. Leave empty if not needed.",
+                "fix_code": "PURE CODE ONLY - The corrected logic.",
                 "references": ["Link to OWASP or official documentation"]
             }}
         }}
@@ -725,27 +740,20 @@ Respond EXCLUSIVELY in JSON format with the following structure:
 """
 
         try:
-            # Invokes the LLM with the Pydantic v2 anti-crash shield
             response = await self.llm.ainvoke([
                 SystemMessage(content="You are an expert security analyst. Always respond in valid JSON. All explanations must be in English."),
                 HumanMessage(content=prompt)
             ])
             
             raw_content = response.content.strip()
-            
-            # 1. MARKDOWN REMOVAL
             clean_json = re.sub(r'^```json\s*|\s*```$', '', raw_content, flags=re.MULTILINE).strip()
 
-            # 2. STANDARD PARSING ATTEMPT WITH STRICT=FALSE
             try:
-                # FIX FONDAMENTALE: strict=False permette ritorni a capo (\n) non escapati generati dall'LLM!
+                # strict=False fondamentale per tollerare newlines generati dall'LLM
                 return json.loads(clean_json, strict=False)
             except json.JSONDecodeError as e:
-                # 3. "Invalid \escape" MITIGATION
-                # If it still fails, it's likely single backslashes used in regex/paths.
                 print(f"[DeepScan] JSON parsing failed ({e}), applying escape character repair...")
                 
-                # Double backslashes while attempting to preserve valid JSON structure
                 fixed_json = clean_json.replace('\\', '\\\\')
                 fixed_json = fixed_json.replace('\\\\"', '\\"') 
                 
@@ -758,6 +766,7 @@ Respond EXCLUSIVELY in JSON format with the following structure:
         except Exception as e:
             print(f"[DeepScan] LLM Error: {e}")
             return {
-                "vulnerabilities": [],
+                "semgrep_vulnerabilities": [],
+                "hidden_vulnerabilities": [],
                 "summary": f"Error during deep analysis: {str(e)}"
             }
