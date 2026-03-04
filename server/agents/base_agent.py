@@ -217,7 +217,13 @@ class BaseAgent(ABC):
         start_time = time.time()
          # Tentiamo tante volte quante sono le chiavi x 2
         max_attempts = len(self.groq_keys) * 2
-        
+        # Se per qualche motivo il prompt è None o vuoto, mettiamo una stringa di fallback
+        if not prompt:
+            print("⚠️ ATTENZIONE: Il prompt generato era None. Uso un fallback.")
+            prompt = "Spiega questa vulnerabilità di sicurezza e come risolverla."
+        elif not isinstance(prompt, str):
+            # Se è una lista o un dizionario, lo forziamo a stringa
+            prompt = str(prompt)
         for attempt in range(max_attempts):
             try:
                 start_time = time.time()
