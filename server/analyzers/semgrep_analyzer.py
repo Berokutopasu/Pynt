@@ -7,6 +7,7 @@ import shutil
 from typing import List, Dict, Union
 from models.schemas import SemgrepResult, AnalysisType
 from config.settings import settings
+import re
 
 class SemgrepAnalyzer:
     """Wrapper per Semgrep che esegue analisi statica"""
@@ -83,9 +84,22 @@ class SemgrepAnalyzer:
             
             # 3. CREA IL FILE NELLA TEMP DIR CON IL NOME ORIGINALE
             scan_path = os.path.join(temp_dir, base_filename)
-            with open(scan_path, 'w', encoding='utf-8') as f:
-                f.write(code)
-            
+            clean_code = code.lstrip('\ufeff')
+            # 2. Sostituiamo TUTTI gli spazi non-breaking (\xa0) con spazi veri in TUTTO il file
+            clean_code = clean_code.replace('\xa0', ' ').replace('\u200b', '')
+            # 3. Normalizziamo i ritorni a capo allo standard puro (ignorando Windows)
+            clean_code = clean_code.replace('\r\n', '\n').replace('\r', '\n')
+            with open(scan_path, 'wb') as f:
+                f.write(clean_code.encode('utf-8'))
+            # --- INIZIO BLOCCO DEBUG CODICE RICEVUTO ---
+            print("\n" + "="*50)
+            print(f"🔍 DEBUG CODICE: Lunghezza {len(code)} caratteri")
+            if len(code) > 0:
+                print(f"🔍 DEBUG CODICE: Inizia con -> {code[:50].replace(chr(10), ' ')}...")
+            else:
+                print("❌ ERRORE CRITICO: Il codice ricevuto da VS Code è VUOTO!")
+            print("="*50 + "\n")
+            # --- FINE BLOCCO DEBUG CODICE RICEVUTO ---
             # Normalizza scan_path per il mapping
             scan_path_normalized = os.path.normpath(os.path.abspath(scan_path))
             
@@ -124,6 +138,7 @@ class SemgrepAnalyzer:
             
             results = self._run_semgrep(targets_to_scan, config_list)
             parsed_results = self._parse_results(results)
+            print(f"DEBUG: Semgrep ha trovato {len(parsed_results)} match RAW prima del mapping")
 
             # 6. DEBUG RISULTATI RAW
             print(f"\n{'='*70}")
@@ -251,18 +266,15 @@ class SemgrepAnalyzer:
 
         cmd.extend([
             "--json",
-            "--quiet",
-            "--severity", "INFO",
-            "--severity", "WARNING",
-            "--severity", "ERROR",
-            "--max-target-bytes", "5000000",
             "--no-git-ignore",
-            "--optimizations", "all",
-            "--timeout", "30"
         ])
 
         cmd.extend(file_paths)
-        
+        # --- INIZIO BLOCCO DEBUG COMANDO ---
+        print("\n🔥 DEBUG SEMGREP: Comando in esecuzione:")
+        print(f"   {' '.join(cmd)}")
+        print("🔥" + "="*48)
+        # --- FINE BLOCCO DEBUG COMANDO ---
         try:
             startupinfo = None
             if os.name == 'nt':
@@ -278,7 +290,16 @@ class SemgrepAnalyzer:
                 startupinfo=startupinfo,
                 shell=False
             )
-            
+            print("\n🔥 DEBUG SEMGREP: Output STDOUT:")
+            if not result.stdout.strip():
+                print("   [STDOUT VUOTO]")
+            else:
+                print(f"   {result.stdout[:200]}... (troncato)")
+                
+            if result.stderr.strip():
+                print("🔥 DEBUG SEMGREP: Errori in STDERR:")
+                print(f"   {result.stderr}")
+            # --- FINE BLOCCO DEBUG RISULTATO ---
             if not result.stdout.strip():
                 return {"results": []}
 
