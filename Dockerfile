@@ -11,8 +11,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install Python dependencies
-COPY requirements.txt .
-RUN pip install --user --no-cache-dir -r requirements.txt
+COPY requirements-docker.txt .
+RUN pip install --user --no-cache-dir -r requirements-docker.txt
 
 # Stage 2: Runtime
 FROM python:3.11-slim
@@ -33,7 +33,7 @@ ENV PYTHONUNBUFFERED=1
 
 # Copy application code
 COPY server/ ./server/
-COPY requirements.txt .
+COPY requirements-docker.txt .
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
