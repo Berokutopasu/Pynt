@@ -15,14 +15,20 @@ Soft assertions (generative):
 import json
 import subprocess
 import sys
+import os
 from pathlib import Path
 from typing import Dict, List, Set
 
 import pytest
 
+# Import pynt server components for Semgrep-only analysis (no LLM)
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "server"))
+from analyzers.semgrep_analyzer import SemgrepAnalyzer
+from models.schemas import AnalysisType
+
 # --- SETUP ---
-WORKSPACE_ROOT = Path(__file__).resolve().parents[1]  # pynt/ directory
-SECURITY_TEST_DIR = WORKSPACE_ROOT / "Security_test"
+TEST_DIR = Path(__file__).resolve().parent  # tests/ directory
+SECURITY_TEST_DIR = TEST_DIR / "Security_test"
 GROUND_TRUTH_FILE = SECURITY_TEST_DIR / "ground_truth.json"
 
 
@@ -33,22 +39,69 @@ def load_ground_truth() -> Dict:
     return json.loads(GROUND_TRUTH_FILE.read_text(encoding="utf-8"))
 
 
-def run_pynt_on_file(target_file: Path) -> Dict:
-    """Execute pynt on a single file and return parsed JSON response."""
-    # Try to call the pynt API via FastAPI server
-    # For now, we'll assume pynt is importable and use it directly
-    # OR fall back to assuming the file was already analyzed
+def _prepare_semgrep_env() -> None:
+    """Ensure SemgrepAnalyzer can discover semgrep in non-activated venv runs."""
+    venv_root = str(Path(sys.executable).resolve().parents[1])
+    scripts_dir = str(Path(venv_root) / "Scripts")
+    os.environ.setdefault("VIRTUAL_ENV", venv_root)
+    if scripts_dir not in os.environ.get("PATH", ""):
+        os.environ["PATH"] = f"{scripts_dir}{os.pathsep}" + os.environ.get("PATH", "")
+
+
+def _normalize_rule_id(check_id: str) -> str | None:
+    """Map semgrep check IDs to canonical `pynt-*` IDs and ignore non-pynt rules."""
+    if not check_id:
+        return None
+    if "pynt-" not in check_id:
+        return None
+    normalized = check_id.split(".")[-1]
+    if normalized == "pynt-debug-execute-check":
+        return None
+    return normalized
+
+
+def run_pynt_on_file(target_file: Path, analysis_type: str = "security") -> Dict:
+    """
+    Execute Semgrep on a single file and return detected findings.
     
-    # Placeholder: assumes pynt CLI returns JSON
-    # Adapt based on your actual pynt invocation
+    Uses only Semgrep, no LLM (faster, no API calls).
     
-    # Example: python -m pynt.server or uvicorn pynt.server.main:app
-    # For testing, we'll simulate with a placeholder that should be replaced
-    # with actual integration
+    Args:
+        target_file: Path to the Python file to analyze
+        analysis_type: Type of analysis (only "security" used for metrics)
+    
+    Returns:
+        Dict with detected rule IDs
+    """
+    if not target_file.exists():
+        raise FileNotFoundError(f"File not found: {target_file}")
+    
+    code = target_file.read_text(encoding="utf-8")
+    
+    # Use SemgrepAnalyzer directly (no LLM, no async)
+    _prepare_semgrep_env()
+    analyzer = SemgrepAnalyzer()
+    semgrep_results = analyzer.analyze(
+        code=code,
+        language="python",
+        analysis_type=AnalysisType.SECURITY,
+        filename=str(target_file),
+        project_path=None,
+        extra_targets=None
+    )
+    
+    # Keep only local pynt rules and normalize prefixed ids.
+    detected_rule_ids = {
+        normalized
+        for result in semgrep_results
+        for normalized in [_normalize_rule_id(result.check_id)]
+        if normalized
+    }
     
     return {
-        "findings": [],  # Placeholder
-        "status": "not_implemented"
+        "detected_rule_ids": detected_rule_ids,
+        "file": target_file.name,
+        "semgrep_results_count": len(semgrep_results)
     }
 
 

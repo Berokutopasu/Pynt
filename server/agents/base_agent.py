@@ -5,12 +5,18 @@ from langchain_groq import ChatGroq
 from langchain_core.messages import HumanMessage, SystemMessage
 import time
 import re
+import hashlib
 from models.schemas import Finding, AnalysisType, SemgrepResult, SeverityLevel
 from config.settings import settings
-from typing import List, Dict, Any, Optional # <--- Aggiungi Any e Optional
+from typing import List, Dict, Any, Optional, Tuple
+from collections import OrderedDict
 from analyzers.semgrep_analyzer import SemgrepAnalyzer
 import asyncio
 import json
+
+# Cache LLM risposte: chiave -> (risultato_parsato, timestamp_inserimento)
+# OrderedDict permette LRU: move_to_end() al lookup, popitem(last=False) all'eviction
+_llm_response_cache: OrderedDict[str, Tuple[Dict[str, Any], float]] = OrderedDict()
 
 class BaseAgent(ABC):
     """Classe base per tutti gli agenti di analisi"""
@@ -181,7 +187,8 @@ class BaseAgent(ABC):
         Genera spiegazione educativa usando LLM
         
         Returns:
-            Dict con: explanation, suggested_fix, code_example, references
+            Dict con: explanation, suggested_fix, code_example, references, is_false_positive
+
         """
         # Estrai snippet di codice problematico
         code_lines = code.split('\n')
@@ -204,6 +211,34 @@ class BaseAgent(ABC):
             else:
                 annotated_lines.append(f"{actual_line_num}: {line_content}")
         code_snippet = '\n'.join(annotated_lines)
+        
+        # --- Crea versione normalizzata per cache (senza numeri riga, se no rifarebbe sempre l'analisi) ---
+        normalized_lines = []
+        for i in range(context_start, context_end):
+            line_content = code_lines[i]
+            # Aggiungi marcatore TARGET LINE senza numero riga
+            if i + 1 == start_line:
+                normalized_lines.append(f"{line_content}  # <--- [TARGET LINE]")
+            else:
+                normalized_lines.append(line_content)
+        
+        code_snippet_for_cache = '\n'.join(normalized_lines).strip()
+        
+        # --- CACHE LLM: lookup prima di chiamare il modello ---
+        cache_key_raw = f"{code_snippet_for_cache}:{semgrep_result.check_id}:{self.analysis_type.value}"
+        cache_key = hashlib.sha256(cache_key_raw.encode('utf-8')).hexdigest()
+
+        if settings.ENABLE_CACHE:
+            cached_entry = _llm_response_cache.get(cache_key)
+            if cached_entry is not None:
+                cached_result, insert_time = cached_entry
+                if time.time() - insert_time < settings.CACHE_TTL:
+                    print(f" [LLM CACHE HIT] {semgrep_result.check_id} @ riga {start_line}")
+                    return cached_result
+                else:
+                    del _llm_response_cache[cache_key]
+        # ------------------------------------------------------
+        
         # Crea prompt per LLM
         prompt = self._build_educational_prompt(
             semgrep_result,
@@ -220,7 +255,7 @@ class BaseAgent(ABC):
         max_attempts = len(self.groq_keys) * 2
         # Se per qualche motivo il prompt è None o vuoto, mettiamo una stringa di fallback
         if not prompt:
-            print("⚠️ ATTENZIONE: Il prompt generato era None. Uso un fallback.")
+            print("ATTENZIONE: Il prompt generato era None. Uso un fallback.")
             prompt = "Spiega questa vulnerabilità di sicurezza e come risolverla."
         elif not isinstance(prompt, str):
             # Se è una lista o un dizionario, lo forziamo a stringa
@@ -256,7 +291,14 @@ class BaseAgent(ABC):
                     status = "[OK]" if value and value != "Nessun contenuto disponibile." else "[FAIL]"
                     print(f"  {status} {key}: {len(value) if value else 0} caratteri")
                 
-                # Se arriviamo qui, è andato tutto bene: ritorniamo il risultato
+                # Se arriviamo qui, è andato tutto bene: scriviamo in cache e ritorniamo
+                if settings.ENABLE_CACHE:
+                    if len(_llm_response_cache) >= settings.CACHE_MAX_SIZE:
+                        oldest_key = next(iter(_llm_response_cache))
+                        del _llm_response_cache[oldest_key]
+                    _llm_response_cache[cache_key] = (parsed, time.time())
+                    print(f" [LLM CACHE WRITE] {semgrep_result.check_id} @ riga {start_line}")
+                
                 return parsed
                 
             except Exception as e:
@@ -627,7 +669,7 @@ class BaseAgent(ABC):
         }
         return severity_map.get(semgrep_severity.upper(), SeverityLevel.INFO)
     
-#funzione d'utilità
+    #funzione d'utilità per estrarre valori da oggetti o dizionari in modo sicuro, evitando errori di attributo
     def _safe_get(self, obj, field, default=None):
             """Estrae un valore da un oggetto o da un dizionario in modo sicuro"""
             if obj is None:
@@ -635,10 +677,8 @@ class BaseAgent(ABC):
             if isinstance(obj, dict):
                 return obj.get(field, default)
             return getattr(obj, field, default)
-    
 
-
-#DEEP-SCAN
+#DEEP-SCAN : integra l'analisi di Semgrep con un secondo livello di analisi LLM per scoprire falsi negativi
     async def generate_deep_scan_report(
         self, 
         code: str, 
@@ -687,6 +727,7 @@ validated elsewhere or if, on the contrary, it comes from unprotected sources id
         prompt = f"""You are a Senior Security Auditor. Your task is two-fold:
 1. Provide mitigation, explanations, and pure fix code for the vulnerabilities ALREADY FOUND by static analysis (Semgrep).
 2. Perform a "Deep Analysis" to find FALSE NEGATIVES (hidden vulnerabilities that Semgrep missed).
+3. Answer in ITALIAN. Be technical and precise.
 
 STATIC ANALYSIS RESULTS (Semgrep):
 {semgrep_summary if semgrep_summary else "No vulnerabilities found by Semgrep."}

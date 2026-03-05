@@ -1,31 +1,42 @@
 # Strategia di Test Pynt - Validazione completa pipeline Semgrep + LLM
 
-**Versione:** 2.0 Unificata  
-**Data:** 2026-03-03  
+**Versione:** 2.1 Aggiornata (Direct Python Execution)  
+**Data:** 2026-03-05  
 **Scope:** Validazione della pipeline diagnostica Semgrep + LLM per il frontend  
 **Dataset Obiettivo:** pynt/Security_test (19 file Python)
 
 ---
 
+## 📌 Aggiornamenti Recenti (v2.0 → v2.1)
+
+✅ **Semgrep-only execution**: Rimosso tutte le chiamate LLM per metrics collection  
+✅ **No API calls**: Nessuna dipendenza da Groq API durante i test  
+✅ **Direct imports**: `SemgrepAnalyzer` eseguito direttamente senza agenti  
+✅ **Semplificazione**: Ridotte da 5 fasi a 4 fasi (merged Phase 2-3)  
+
+---
+
 ## Quick Start (3 Passaggi)
 
-### 1. Validazione Ground Truth
+### 1. Validazione Ground Truth & Schema
 ```bash
 cd c:\Users\ladyc\Documents\GitHub\pynt
 pytest tests/test_diagnostic_validation.py::TestDeterministicDetection -v
 # Output atteso: 23 passed (schema, file count, rule refs)
 ```
 
-### 2. Cobertura Attuale
+### 2. Validazione Detection Regole & Metriche
 ```bash
-pytest tests/test_diagnostic_validation.py::TestDetectionCoverage -v
-# Output: 12/19 file reviewed, 7 draft (catalog gaps)
+pytest tests/test_security_analysis.py -v
+# Test per-file detection, metriche aggregate (Precision/Recall/F1)
+# Output: Numeri di TP, FP, FN per ogni file
 ```
 
-### 3. Imposta Baseline Metriche
+### 3. Validazione Struttura LLM & Sezioni
 ```bash
-python tests/metrics.py --run-pynt --set-baseline
-# Crea snapshot: tests/.test_results/baseline.json
+pytest tests/test_detector_integration.py -v
+# Valida Finding schema, sezioni educativeExplanation, false positive field
+# Output: Conformità schema, sezioni LLM presenti, false positive detection
 ```
 
 ---
@@ -85,22 +96,21 @@ La test strategy si articola su **3 livelli** (deterministic, generative, regres
 
 ## 3. Livelli di Test & Esecuzione
 
-### Layer 1: Deterministic (Hard) Assertions
+### Layer 1: Deterministic (Hard) Assertions ✅
 **Proposito**: Validare la detection delle regole (layer Semgrep) contro ground truth  
-**Quando**: Ad ogni esecuzione test (veloce, no dipendenze esterne)
+**Quando**: Ad ogni esecuzione test (veloce, no dipendenze esterne)  
+**Status**: ✅ Implementato in `test_diagnostic_validation.py` + `test_security_analysis.py`
+
+**Test Class**: `TestDeterministicDetection`, `TestDetectionCoverage`, `TestRegressionBaseline`
 
 ```python
-# Type checks
-assert all(isinstance(rid, str) for rid in case["expected_rule_ids"])
-assert case["review_status"] in ["reviewed", "draft"]
+# Esecuzione in test_security_analysis.py
+analyzer = SemgrepAnalyzer()
+semgrep_results = analyzer.analyze(code, language="python", ...)
+detected_rule_ids = {result.check_id for result in semgrep_results}
 
-# Schema validation
-for case in cases:
-    assert set(case.keys()) >= {"file", "expected_rule_ids", "review_status", "notes"}
-
-# Coverage
-assert len(reviewed_cases) >= 12
-assert files_with_expected_rules >= 10
+# Validazione vs ground truth
+assert detected_rule_ids == expected_rule_ids
 ```
 
 **KPI**:
@@ -108,31 +118,40 @@ assert files_with_expected_rules >= 10
 - Check esistenza file: 100% dei 19 file presenti
 - Distribuzione review status: ≥ 12 reviewed, ≤ 7 draft
 
-### Layer 2: Generative (Soft) Assertions
-**Proposito**: Validare qualità output LLM e contratto API (quando integrato)  
-**Quando**: Fase test di integrazione (richiede server pynt live)
+### Layer 2: LLM Structure & Parsing ✅
+**Proposito**: Validare qualità output LLM, Finding schema, educationalExplanation sections  
+**Quando**: Con LLM API disponibile (test su aa.py per evitare eccessive chiamate)  
+**Status**: ✅ Implementato in `test_detector_integration.py`
+
+**Test Classes**: `TestFindingStructure`, `TestFalsePositiveDetection`
 
 ```python
-# API contract
-assert response["type"] == "AnalysisResponse"
-for finding in response["findings"]:
-    assert {"line", "column", "severity", "message", "ruleId"}.issubset(finding.keys())
+# API contract validation
+finding = analyzed_findings[0]
+assert finding.line > 0
+assert finding.educationalExplanation != ""
+assert isinstance(finding.isFalsePositive, bool)
 
-# LLM section parseability
-sections_found = parse_llm_response(finding["message"])
-assert sections_found >= {"EXPLANATION", "SUGGESTED_FIX"}
+# LLM section validation
+sections = validate_educational_explanation_sections(
+    finding.educationalExplanation
+)
+assert sections['all_sections_present']  # explanation, suggested_fix, ecc.
 ```
 
 **KPI**:
-- Message non-empty: 100%
-- Sezioni parseabili: ≥ 95% (FALSE_POSITIVE, EXPLANATION, SUGGESTED_FIX, CODE_EXAMPLE)
-- Conformità schema: 100%
+- All required fields present: 100%
+- educationalExplanation contains all 5 sections: ≥ 95%
+- suggestedFix non-empty quando expected: ≥ 90%
+- isFalsePositive field set correctly: 100%
 
 ### Layer 3: Regression (Temporal Assertions)
 **Proposito**: Rilevare drift nella detection tra versioni  
-**Quando**: Continuous integration dopo cambio regole
+**Quando**: Continuous integration dopo cambio regole  
+**Status**: 🔄 Planificato (baseline da stabilire in Phase 2)
 
 ```python
+# Dopo stabilire baseline
 current_metrics = compute_detection_metrics()
 baseline = load_baseline()
 
@@ -146,8 +165,8 @@ assert abs(deltas["recall"]) < 0.05, "Regressione recall rilevata"
 ```
 
 **Trigger**:
-- Qualsiasi modifica a `python_rules.yaml` → re-run metrics
-- Qualsiasi cambio prompt LLM → re-run soft assertions
+- Qualsiasi modifica a `python_rules.yaml` → re-run detection tests
+- Qualsiasi cambio prompt LLM → re-run LLM structure tests
 - Qualsiasi upgrade versione Semgrep → full regression suite
 
 ---
@@ -260,73 +279,85 @@ F1 = 2 × (precision × recall) / (precision + recall)
 
 ### Comandi di Esecuzione per Layer
 
-**Layer 1 - Hard Assertions (Deterministic)**
+**Layer 1 - Hard Assertions (Detection Accuracy) ✅**
 ```bash
-# Validazione schema ground truth
+# Validazione schema ground truth (no analysis execution)
 pytest tests/test_diagnostic_validation.py::TestDeterministicDetection -v
-# Output: 23/23 tests passed (file existence, rule catalog references)
+# Output: 23+ tests passed (file existence, rule catalog references)
 
 # Governance checks
 pytest tests/test_diagnostic_validation.py::TestGovernance -v
 # Output: Verifica adjudication_notes presenti, status reviewed/draft validi
+
+# Detection per-file con metriche
+pytest tests/test_security_analysis.py::TestDetectionCoverage -v
+# Output: Detection results per file con TP/FP/FN tracking
+# Tempo: ~2-3 minuti
 ```
 
-**Layer 2 - Soft Assertions (Requires Live Server)**
+**Layer 2 - LLM Structure & Parsing Validation ✅**
 ```bash
-# Da eseguire quando server pynt è UP
-# Attualmente skipped - sarà attivato in Phase 3
-pytest tests/test_diagnostic_validation.py::TestSoftAssertions -v
-# Validazione: API contract, parseabilità LLM sections
+# Valida Finding schema e sezioni LLM
+pytest tests/test_detector_integration.py::TestFindingStructure -v
+# Output: Validazione campi obbligatori, tipi corretti, sezioni presenti
+
+# Validazione false positive field
+pytest tests/test_detector_integration.py::TestFalsePositiveDetection -v
+# Output: Verifica isFalsePositive marcato correttamente
+
+# Validazione completa (tutte le sezioni educativeExplanation)
+pytest tests/test_detector_integration.py::TestFindingStructure::test_educational_explanation_contains_all_sections -v
+# Output: Verifica educationalExplanation contiene explanation, suggested_fix, code_example, references, is_false_positive
 ```
 
-**Layer 3 - Regression Tracking**
+**Layer 3 - Regression Tracking (Future) 🔄**
 ```bash
-# Imposta baseline (Phase 1 completato)
-python tests/metrics.py --run-pynt --set-baseline
-# Output: snapshot precision/recall/F1 in baseline.json
-
-# Monitora regressioni
-python tests/metrics.py --run-pynt --compare-baseline
-# Alert se delta > ±0.05 su precision/recall
+# Una volta stabilito baseline, comparare con run successivo
+# (sarà parte di CI pipeline)
+pytest tests/test_security_analysis.py::TestRegressionBaseline -v
 ```
 
 ### Piano Fasi di Esecuzione
 
-#### Phase 1: Baseline (✅ Completato - Settimana 1)
+#### Phase 1: Baseline Setup ✅ (Completato)
 - ✅ Creare ground truth (automatico + adjudication manuale)
 - ✅ Scrivere hard assertion tests (schema validation)
+- ✅ Implementare run_pynt_on_file() con import diretto
 - ✅ Scrivere computazione metriche (precision/recall/F1)
-- ✅ Impostare metriche baseline
-- **Deliverable**: ground_truth.json + test_diagnostic_validation.py + baseline_metrics.json
+- **Deliverable**: ground_truth.json + test_diagnostic_validation.py + metrics.py
 
-#### Phase 2: Live Detection (Settimana 2–3)
-- Integrare server pynt (start FastAPI server, run analyzer su Security_test)
-- Collezionare detected rule_ids da ogni file
-- Eseguire hard assertions (match contro ground truth)
-- Computare metriche aggregate
-- **Gate**: Recall ≥ 0.85 su casi reviewed
+#### Phase 2: Live Detection & Metrics 🔄 (In Progress)
+- ✅ Implementare test_security_analysis.py con detection per-file
+- ✅ Implementare metriche aggregate (precision/recall/F1)
+- ✅ Implementare test_detector_integration.py con LLM validation
+- ⏳ Eseguire `pytest tests/test_security_analysis.py -v`
+- ⏳ Eseguire `pytest tests/test_detector_integration.py -v`
+- ⏳ Validare metrics aggregate (target: Recall ≥0.85, Precision ≥0.80)
+- **Gate**: Recall ≥ 0.85 su casi reviewed + Finding schema 100% conforme
 
 **Comandi Phase 2**:
 ```bash
 cd c:\Users\ladyc\Documents\GitHub\pynt
-uvicorn server.main:app --reload  # Start server
-python tests/metrics.py --run-pynt  # Esegui detection reale
+
+# Layer 1: Detection tests
+pytest tests/test_diagnostic_validation.py::TestDeterministicDetection -v
+pytest tests/test_security_analysis.py::TestDetectionCoverage -v
+
+# Layer 2: LLM structure tests (require GROQ_API_KEY se test non skipped)
+pytest tests/test_detector_integration.py -v
+
+# Vedi summary
+pytest tests/ -v --tb=short
 ```
 
-#### Phase 3: Soft Assertions (Settimana 3–4)
-- Validare contratto API (conformità response schema)
-- Parsare sezioni diagnostiche LLM
-- Misurare parse success rate
-- **Gate**: ≥ 95% parse success rate
-
-#### Phase 4: Catalog Expansion (Settimana 4–6)
+#### Phase 3: Catalog Expansion (Future)
 - Implementare regole mancanti (CMDi, YAML deserialization, SQL %)
 - Re-run metriche (draft → reviewed promotion)
 - Target: copertura da 12/19 a 17+/19 file
 - **Gate**: Recall ≥ 0.90 su tutti casi reviewed
 
-#### Phase 5: Regression CI (Settimana 6+)
-- Impostare baseline come golden standard
+#### Phase 4: Regression CI & Automation (Future)
+- Impostare baseline come golden standard in CI
 - Run regression suite su ogni cambio regole/prompt
 - Automated gate su precision/recall delta
 - **Gate**: |delta| < 0.05 su precision/recall
@@ -381,45 +412,54 @@ pytest tests/test_diagnostic_validation.py::TestDeterministicDetection -v
 
 ### Pre-Release Gate
 ```bash
-python tests/metrics.py --run-pynt --compare-baseline
-# Deve passare: regressione entro ±5% su precision/recall
-# Alert se nuovo FP introdotto
+pytest tests/test_security_analysis.py -v
+pytest tests/test_detector_integration.py -v
+# Deve passare: detection accuracy (Recall ≥0.85) + Finding schema 100% conforme
+# Alert se Recall scende sotto 0.85 o Precision sotto 0.80
 ```
-
-### Post-Deployment Monitoring
-- Weekly metrics run su diagnostiche produzione
-- Alert su P50 latency increase > 100ms
-- Alert su message parse failure rate > 5%
 
 ### Troubleshooting Comuni
 
-**Problema 1: pytest tests not found**
+**Problema 1: "Groq API key not configured"**
 ```
-ERROR: file not found: tests/test_diagnostic_validation.py
+ERROR: Groq API key not configured - skipping LLM integration tests
 ```
-Soluzione: Verifica path da directory pynt/
+✅ **Accettabile!** test_detector_integration.py salta automaticamente se no GROQ_API_KEY.  
+Per testare LLM parsing, aggiungi chiave a `.env`, altrimenti test si salta senza errore.
+
+**Problema 2: ModuleNotFoundError per SemgrepAnalyzer**
+```
+ModuleNotFoundError: No module named 'analyzers'
+```
+Soluzione: Esegui da directory pynt/
 ```bash
 cd c:\Users\ladyc\Documents\GitHub\pynt
-ls tests/test_diagnostic_validation.py  # Deve esistere
+pytest tests/ -v
 ```
 
-**Problema 2: ground_truth.json parsing fails**
+**Problema 3: Semgrep not found**
+```
+RuntimeError: Semgrep non trovato. Assicurati di averlo installato nel venv.
+```
+Soluzione: Installa Semgrep
+```bash
+pip install semgrep
+```
+
+**Problema 4: ground_truth.json parsing fails**
 ```
 JSONDecodeError: Expecting value on line 1
 ```
 Soluzione: Valida JSON sintassi
 ```bash
-python -m json.tool Security_test/ground_truth.json | head -20
+python -c "import json; json.load(open('tests/Security_test/ground_truth.json'))"
 ```
 
-**Problema 3: Metrics baseline not set**
+**Problema 5: Test skipped (no API key)**
 ```
-FileNotFoundError: tests/.test_results/baseline.json
+SKIPPED: Groq API key not configured - skipping LLM integration tests
 ```
-Soluzione: Crea baseline initialization
-```bash
-python tests/metrics.py --run-pynt --set-baseline
-```
+✅ Normale! Aggiungi GROQ_API_KEY a `.env` per run LLM tests, altrimenti ignora.
 
 ---
 
@@ -427,36 +467,60 @@ python tests/metrics.py --run-pynt --set-baseline
 
 | Componente | Ubicazione | Proposito |
 |-----------|----------|---------|
-| Ground Truth | `Security_test/ground_truth.json` | Dataset autoritativo + metadata |
-| Hard Assertions | `tests/test_diagnostic_validation.py` | Schema validation, coverage checks |
-| Metrics Script | `tests/metrics.py` | Calcolo Precision/recall/F1 |
-| Baseline | `tests/.test_results/baseline.json` | Riferimento regressione |
+| Ground Truth | `tests/Security_test/ground_truth.json` | Dataset autoritativo + metadata |
+| Schema Validation | `tests/test_diagnostic_validation.py` | Hard assertions: schema, governance, coverage |
+| Detection Tests | `tests/test_security_analysis.py` | Per-file detection, metriche aggregate precision/recall/F1 |
+| LLM Structure Tests | `tests/test_detector_integration.py` | Finding schema validation, educationalExplanation sections, false positive detection |
+| Test Data | `tests/Security_test/aa.py, bb.py, c1-c17.py` | 19 file Python con vulnerability patterns |
 | Catalog | `server/analyzers/rules/python_rules.yaml` | Regole Semgrep attive |
+| Config | `tests/pytest.ini` | Configurazione pytest (markers, test discovery)
 
 ---
 
 ## 10. Acceptance Criteria & Prossimi Task
 
-### Definition of Done
-- [ ] Ground truth rivisto da 2+ persone (internal audit)
-- [ ] Hard assertions pass 100% (23/23 tests)
-- [ ] Catalog gaps documentati con priority/suggested rules
-- [ ] Metrics baseline stabilito (snapshot precision/recall/F1)
-- [ ] Regression gate implementato in CI
-- [ ] Tutte le fasi esecuzione completate per il rilascio
+### Definition of Done (Phase 2)
+- ✅ Ground truth completato e revisionato (19 file)
+- ✅ Hard assertions implementati (TestDeterministicDetection, TestGovernance)
+- ✅ Detection tests implementati (TestDetectionCoverage con metriche per-file)
+- ✅ LLM structure tests implementati (TestFindingStructure, TestFalsePositiveDetection)
+- ✅ educationalExplanation section validation (5 sections: explanation, suggested_fix, code_example, references, is_false_positive)
+- ✅ Pulizia test folder (rimossi file inutili: conftest.py, metrics.py, fixtures/)
+- ⏳ Eseguire `pytest tests/test_security_analysis.py -v` - validare Recall ≥0.85
+- ⏳ Eseguire `pytest tests/test_detector_integration.py -v` - validare Finding schema 100%
+- ⏳ Catalog gaps documentati con priority/suggested rules
+- ⏳ Regression gate implementato per CI
 
 ### Task Prossimo Sprint
-1. Implementare live pynt execution (Phase 2)
-2. Misurare actual detection (hard assertions)
-3. Implementare command injection rule
-4. Implementare YAML deserialization rule
-5. Re-compute metriche (target: → 0.90+ recall)
+1. ✅ **Cleanup test folder**: Rimossi conftest.py, metrics.py, fixtures/
+2. ⏳ **Eseguire Layer 1 + Layer 2 tests**:
+   ```bash
+   pytest tests/test_diagnostic_validation.py::TestDeterministicDetection -v
+   pytest tests/test_security_analysis.py -v
+   pytest tests/test_detector_integration.py -v
+   ```
+3. ⏳ **Analizzare risultati**:
+   - Recall vs soglia 0.85 (detection coverage)
+   - Finding schema 100% conforme (no field missing)
+   - educationalExplanation sections presenti (all 5 sections)
+   - false positive detection accuracy
+4. 🔮 **Implementare regole mancanti** (Phase 3, se Recall < 0.85)
+   - Command injection (os.system, subprocess)
+   - YAML unsafe deserialization
+   - SQL injection % formatting
+5. 🔮 **Soft assertions & LLM quality** (Phase 4)
+   - Parse success rate ≥ 95%
+   - suggestedFix quality
+   - executableFix validity
 
 ---
 
 ## 11. Riferimenti
 
-- Ground Truth: [security_test/ground_truth.json](security_test/ground_truth.json)
+- Ground Truth: [tests/Security_test/ground_truth.json](tests/Security_test/ground_truth.json)
+- Schema Validation Tests: [tests/test_diagnostic_validation.py](tests/test_diagnostic_validation.py)
+- Detection Tests: [tests/test_security_analysis.py](tests/test_security_analysis.py)
+- LLM Structure Tests: [tests/test_detector_integration.py](tests/test_detector_integration.py)
 - API Contract: [server/models/schemas.py](server/models/schemas.py) (linea 32–68)
 - Rule Catalog: [server/analyzers/rules/python_rules.yaml](server/analyzers/rules/python_rules.yaml)
 - Frontend Integration: [extension/src/types.ts](extension/src/types.ts) (Finding interface)

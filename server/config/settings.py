@@ -45,6 +45,7 @@ class Settings(BaseSettings):
     # Cache
     ENABLE_CACHE: bool = True
     CACHE_TTL: int = 3600
+    CACHE_MAX_SIZE: int = 500
     
     class Config:
         env_file = ".env"

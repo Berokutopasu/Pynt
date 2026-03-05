@@ -64,7 +64,7 @@ function activate(context) {
     context.subscriptions.push(fixProvider);
     // Comando: Re-Scan automatico dopo il Quick Fix
     const analyzeAfterFixCommand = vscode.commands.registerCommand('pynt.analyzeAfterFix', async (document) => {
-        console.log("🔄 Fix applicato. Avvio ri-scansione automatica...");
+        console.log("Fix applicato. Avvio ri-scansione automatica...");
         // 1. Piccolo ritardo per assicurarsi che VS Code abbia finito di aggiornare il testo
         await new Promise(resolve => setTimeout(resolve, 500));
         // 2. Lancia l'analisi completa (Security + Best + Fault)
