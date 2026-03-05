@@ -1,11 +1,20 @@
 # main.py
-from fastapi import FastAPI, HTTPException, Body, logger
-from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
-import time
 import asyncio
+import sys
+import time
+from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import List
-from service.rag_service import RAGService 
+
+from fastapi import Body, FastAPI, HTTPException, logger
+from fastapi.middleware.cors import CORSMiddleware
+
+# Ensure local server modules are importable when starting from repo root
+SERVER_DIR = Path(__file__).resolve().parent
+if str(SERVER_DIR) not in sys.path:
+    sys.path.insert(0, str(SERVER_DIR))
+
+from service.rag_service import RAGService
 
 from models.schemas import (
     AnalysisRequest,

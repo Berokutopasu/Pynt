@@ -27,3 +27,6 @@ Fixprovider*.txt
 
 # IDE & Build
 /extension/out
+
+# RAG cache
+/server/.rag_cache/

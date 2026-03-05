@@ -1,0 +1,169 @@
+[build-system]
+requires = ["setuptools>=65.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pynt-server"
+version = "0.2.0"
+description = "Educational code analyzer with LLM-powered explanations and RAG-based context"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "Pynt Team", email = "contact@pynt.dev"}
+]
+keywords = ["code-analysis", "security", "education", "linting", "semgrep", "llm"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Education",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Education",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Software Development :: Quality Assurance",
+]
+requires-python = ">=3.9"
+
+dependencies = [
+    "fastapi>=0.123.9",
+    "uvicorn[standard]>=0.38.0",
+    "pydantic>=2.0",
+    "pydantic-settings>=2.0",
+    "python-dotenv>=1.0",
+    "semgrep>=1.50.0",
+    "langchain>=1.0",
+    "langchain-groq>=1.0",
+    "langchain-community>=0.0",
+    "langchain-core>=0.1",
+    "ragas>=0.4",
+    "datasets>=4.0",
+    "faiss-cpu>=1.7",
+    "sentence-transformers>=2.0",
+    "groq>=0.30",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=9.0",
+    "pytest-timeout>=2.0",
+    "pytest-cov>=4.0",
+    "black>=23.0",
+    "ruff>=0.1",
+    "mypy>=1.0",
+    "pre-commit>=3.0",
+]
+
+test = [
+    "pytest>=9.0",
+    "pytest-timeout>=2.0",
+    "pytest-cov>=4.0",
+]
+
+docs = [
+    "mkdocs>=1.4",
+    "mkdocs-material>=9.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/yourusername/pynt"
+Documentation = "https://github.com/yourusername/pynt#readme"
+Repository = "https://github.com/yourusername/pynt.git"
+Issues = "https://github.com/yourusername/pynt/issues"
+
+[tool.setuptools]
+packages = ["server"]
+
+[tool.setuptools.package-data]
+server = ["rules/**/*.yaml", "config/**/*.json"]
+
+[tool.black]
+line-length = 100
+target-version = ["py39", "py310", "py311"]
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+)/
+'''
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "C",    # flake8-comprehensions
+    "B",    # flake8-bugbear
+]
+ignore = [
+    "E501",  # line too long (handled by black)
+]
+
+[tool.ruff.per-file-ignores]
+"__init__.py" = ["F401"]
+
+[tool.ruff.isort]
+known-first-party = ["server"]
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+check_untyped_defs = true
+ignore_missing_imports = true
+exclude = ["venv", "__pycache__", "tests"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short --strict-markers"
+markers = [
+    "deterministic: Hard checks on ground truth (always run)",
+    "generative: Soft checks on LLM output (requires live server)",
+    "regression: Baseline comparison tests",
+    "governance: Ground truth review & adjudication checks",
+    "slow: Creates baseline/persistent state",
+    "integration: Requires live pynt server",
+    "rag_offline: RAG retrieval-only tests (no external LLM/API)",
+    "rag_online: RAGAS end-to-end evaluation tests (requires external LLM/API)",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+]
+
+[tool.coverage.run]
+source = ["server"]
+omit = [
+    "*/tests/*",
+    "*/site-packages/*",
+    "*/__pycache__/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "^\\s*@(abc\\.)?abstractmethod",
+]

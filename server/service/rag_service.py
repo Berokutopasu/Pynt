@@ -1,6 +1,8 @@
 # service/rag_service.py
 import os
 import time
+import hashlib
+from pathlib import Path
 from typing import List
 
 # --- MODIFICA 1: Usiamo Embeddings Locali invece di Google ---
@@ -35,7 +37,53 @@ class RAGService:
         # ---------------------------------------------------
         
         self.current_project_path = None
+        self.embedding_model_name = "all-MiniLM-L6-v2"
+        self.cache_root = Path(__file__).resolve().parents[1] / ".rag_cache" / "faiss"
+        self.cache_root.mkdir(parents=True, exist_ok=True)
         self._initialized = True
+
+    def _get_cache_dir(self, project_path: str, language: str) -> Path:
+        """Build a stable cache folder path for a project/language/model combo."""
+        abs_project = str(Path(project_path).resolve())
+        raw = f"{abs_project}|{language.lower()}|{self.embedding_model_name}"
+        project_hash = hashlib.sha1(raw.encode("utf-8")).hexdigest()[:16]
+        return self.cache_root / project_hash
+
+    def _try_load_cached_index(self, project_path: str, language: str) -> bool:
+        """Try loading a previously persisted FAISS index from disk."""
+        cache_dir = self._get_cache_dir(project_path, language)
+        index_file = cache_dir / "index.faiss"
+        store_file = cache_dir / "index.pkl"
+
+        if not index_file.exists() or not store_file.exists():
+            return False
+
+        try:
+            self.vector_store = FAISS.load_local(
+                str(cache_dir),
+                self.embeddings,
+                allow_dangerous_deserialization=True,
+            )
+            self.current_project_path = project_path
+            print(f" RAG: Indice FAISS caricato da disco: {cache_dir}")
+            return True
+        except Exception as e:
+            print(f"RAG Cache Load Error: {e}")
+            return False
+
+    def _save_index_to_cache(self, project_path: str, language: str) -> None:
+        """Persist FAISS index to disk for fast reloads across restarts."""
+        if not self.vector_store:
+            return
+
+        cache_dir = self._get_cache_dir(project_path, language)
+        cache_dir.mkdir(parents=True, exist_ok=True)
+
+        try:
+            self.vector_store.save_local(str(cache_dir))
+            print(f" RAG: Indice FAISS salvato su disco: {cache_dir}")
+        except Exception as e:
+            print(f"RAG Cache Save Error: {e}")
 
     def ingest_project(self, project_path: str, language: str = "python"):
         """
@@ -44,6 +92,10 @@ class RAGService:
         # Evita re-indicizzazione inutile
         if self.current_project_path == project_path and self.vector_store:
             print(f" RAG: Progetto {project_path} già in memoria.")
+            return
+
+        # Prova prima a riusare l'indice persistito su disco.
+        if self._try_load_cached_index(project_path, language):
             return
 
         print(f"RAG: Lettura file da {project_path}...")
@@ -66,6 +118,13 @@ class RAGService:
                 loader_cls=TextLoader,
                 show_progress=False,
                 use_multithreading=True,
+                loader_kwargs={
+                    "encoding": "utf-8",
+                    # Fallback automatico su encoding alternativi quando UTF-8 fallisce
+                    "autodetect_encoding": True,
+                },
+                # Non fermare l'indicizzazione se un singolo file non e' decodificabile
+                silent_errors=True,
                 exclude=["**/venv/**", "**/node_modules/**", "**/.git/**", "**/__pycache__/**"] #esclude cartelle comuni che non contengono codice sorgente rilevante
             )
             docs = loader.load()#legge fisicamente i file e li carica in memoria come documenti per l'indicizzazione
@@ -88,6 +147,7 @@ class RAGService:
             self.vector_store = FAISS.from_documents(splits, self.embeddings)#crea l'indice vettoriale in memoria usando i chunk e gli embeddings locali
             
             self.current_project_path = project_path
+            self._save_index_to_cache(project_path, language)
             print(f" RAG: Indicizzazione completata con successo!")
 
         except Exception as e:

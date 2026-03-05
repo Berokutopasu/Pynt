@@ -2,10 +2,24 @@
 from pydantic_settings import BaseSettings
 from typing import Optional, List
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 
-# Forza il caricamento del .env dalla root del progetto
-load_dotenv()
+# Carica .env in modo robusto indipendentemente dalla cwd.
+# Priorita': server/.env (coerente con il progetto), fallback: root/.env
+_CONFIG_DIR = Path(__file__).resolve().parent
+_SERVER_DIR = _CONFIG_DIR.parent
+_ROOT_DIR = _SERVER_DIR.parent
+
+_server_env = _SERVER_DIR / ".env"
+_root_env = _ROOT_DIR / ".env"
+
+if _server_env.exists():
+    load_dotenv(dotenv_path=_server_env)
+elif _root_env.exists():
+    load_dotenv(dotenv_path=_root_env)
+else:
+    load_dotenv()
 
 class Settings(BaseSettings):
     # Server
@@ -48,7 +62,8 @@ class Settings(BaseSettings):
     CACHE_MAX_SIZE: int = 500
     
     class Config:
-        env_file = ".env"
+        # Usa path assoluto verso server/.env per evitare dipendenza dalla cwd
+        env_file = str(_server_env)
         extra = "ignore" 
         case_sensitive = True
 

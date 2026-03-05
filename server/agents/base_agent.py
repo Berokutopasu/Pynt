@@ -209,7 +209,7 @@ class BaseAgent(ABC):
                 marker = "  # <--- [TARGET LINE]"
                 annotated_lines.append(f"{actual_line_num}: {line_content}{marker}")
             else:
-                annotated_lines.append(f"{actual_line_num}: {line_content}")
+                annotated_lines.append(f"{actual_line_num}: {line_content}") # Manteniamo la numerazione per chiarezza, ma solo la riga target avrà il marcatore evidente.
         code_snippet = '\n'.join(annotated_lines)
         
         # --- Crea versione normalizzata per cache (senza numeri riga, se no rifarebbe sempre l'analisi) ---
@@ -782,7 +782,7 @@ Respond EXCLUSIVELY in JSON format with the following structure:
 
         try:
             response = await self.llm.ainvoke([
-                SystemMessage(content="You are an expert security analyst. Always respond in valid JSON. All explanations must be in English."),
+                SystemMessage(content="You are an expert security analyst. Always respond in valid JSON. All explanations must be in Italian."),
                 HumanMessage(content=prompt)
             ])
             
