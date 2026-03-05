@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        :root {
+            --bg: var(--vscode-editor-background);
+            --border: var(--vscode-panel-border);
+            --text: var(--vscode-editor-foreground);
+            --link: var(--vscode-textLink-foreground);
+            --code-bg: #1e1e1e;
+            --critical: #f14c4c;
+            --high: #cca700;
+            --medium: #3794ff;
+            --low: #6a9955;
+            --button-bg: var(--vscode-button-background);
+            --button-hover: var(--vscode-button-hoverBackground);
+            --section-bg: rgba(128, 128, 128, 0.05);
+        }
+
+        body {
+            font-family: var(--vscode-font-family);
+            color: var(--text);
+            background: var(--bg);
+            padding: 20px;
+            line-height: 1.6;
+            margin: 0;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .header {
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 1.5em;
+        }
+
+        .summary {
+            background: rgba(128, 128, 128, 0.1);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+            border-left: 4px solid var(--link);
+        }
+
+        .section-title {
+            font-size: 1.3em;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-bottom: 20px;
+            background: var(--section-bg);
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .card-header {
+            padding: 12px 15px;
+            background: rgba(128, 128, 128, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .card-body {
+            padding: 15px;
+        }
+
+        .severity {
+            font-weight: bold;
+            border-radius: 4px;
+            padding: 2px 10px;
+            color: white;
+            font-size: 0.8em;
+            text-transform: uppercase;
+        }
+
+        .CRITICAL, .ERROR { background: var(--critical); }
+        .HIGH, .WARNING { background: var(--high); }
+        .MEDIUM { background: var(--medium); }
+        .LOW, .INFO { background: var(--low); }
+
+        .label {
+            font-weight: bold;
+            color: var(--link);
+            display: block;
+            margin-top: 15px;
+            margin-bottom: 5px;
+            font-size: 0.85em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .why-missed-box {
+            background: rgba(204, 167, 0, 0.1);
+            border-left: 4px solid var(--high);
+            padding: 10px 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            font-size: 0.95em;
+        }
+
+        .code-container {
+            position: relative;
+            margin-top: 5px;
+        }
+
+        .code-block {
+            background: var(--code-bg);
+            color: #d4d4d4;
+            padding: 12px;
+            border-radius: 5px;
+            font-family: 'Consolas', 'Courier New', monospace;
+            white-space: pre-wrap;
+            font-size: 0.9em;
+            border: 1px solid #333;
+            overflow-x: auto;
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: var(--button-bg);
+            color: white;
+            border: none;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.75em;
+            opacity: 0.8;
+            transition: opacity 0.2s;
+        }
+
+        .copy-btn:hover {
+            opacity: 1;
+            background: var(--button-hover);
+        }
+
+        .loading {
+            text-align: center;
+            margin-top: 50px;
+            font-style: italic;
+            opacity: 0.7;
+        }
+
+        .error {
+            color: var(--critical);
+            background: rgba(241, 76, 76, 0.1);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid var(--critical);
+        }
+
+        .badge-count {
+            background: var(--link);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+        }
+        
+        .debug-info {
+            font-size: 0.8em;
+            opacity: 0.6;
+            margin-top: 30px;
+            text-align: right;
+            border-top: 1px solid var(--border);
+            padding-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1> Deep Scan Audit</h1>
+            <span id="vuln-count" class="badge-count" style="display:none">0</span>
+        </div>
+        <div id="file-info" style="font-size: 0.9em; opacity: 0.7; margin-bottom: 15px;"></div>
+
+        <div id="loader" class="loading">
+            <p> Running Semgrep baseline and AI Deep Analysis...</p>
+        </div>
+
+        <div id="error-box" class="error" style="display:none"></div>
+
+        <div id="content" style="display:none">
+            <div class="summary" id="summary"></div>
+            
+            <!-- SEZIONE 1: SEMGREP ARRICCHITI -->
+            <h2 class="section-title"> Standard Findings (Semgrep + AI Fix)</h2>
+            <div id="semgrep-list"></div>
+
+            <!-- SEZIONE 2: FALSI NEGATIVI AI -->
+            <h2 class="section-title"> Deep Analysis (Hidden Vulnerabilities)</h2>
+            <div id="hidden-list"></div>
+            
+            <div id="debug-info" class="debug-info"></div>
+        </div>
+    </div>
+
+    <script>
+        function copyToClipboard(btn) {
+            const codeBlock = btn.nextElementSibling;
+            const text = codeBlock.innerText;
+            
+            const el = document.createElement('textarea');
+            el.value = text;
+            document.body.appendChild(el);
+            el.select();
+            document.execCommand('copy');
+            document.body.removeChild(el);
+            
+            const originalText = btn.innerText;
+            btn.innerText = 'Copied!';
+            setTimeout(() => btn.innerText = originalText, 2000);
+        }
+
+        function escapeHTML(str) {
+            if (!str) return '';
+            return str.toString()
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        }
+
+        function renderVulnerabilityCard(v, isHidden) {
+            return `
+                <div class="card" style="border-left: 4px solid ${isHidden ? 'var(--critical)' : 'var(--button-bg)'};">
+                    <div class="card-header">
+                        <strong>${escapeHTML(v.title)}</strong>
+                        <span class="severity ${escapeHTML(v.severity)}">${escapeHTML(v.severity)}</span>
+                    </div>
+                    <div class="card-body">
+                        <p style="margin-top:0;"><strong> Position:</strong> Line ${escapeHTML(v.line)}</p>
+                        <p>${escapeHTML(v.description)}</p>
+                        
+                        ${isHidden && v.why_semgrep_missed ? `
+                            <div class="why-missed-box">
+                                <strong> Why Semgrep missed it:</strong><br>
+                                ${escapeHTML(v.why_semgrep_missed)}
+                            </div>
+                        ` : ''}
+                        
+                        ${v.remediation ? `
+                            <div style="margin-top:20px; border-top: 1px solid var(--border); padding-top: 10px;">
+                                <span class="label"> Remediation Explanation</span>
+                                <p style="margin-bottom:10px;">${escapeHTML(v.remediation.explanation)}</p>
+                                
+                                ${v.remediation.imports ? `
+                                    <span class="label"> Necessary Imports</span>
+                                    <div class="code-container">
+                                        <button class="copy-btn" onclick="copyToClipboard(this)">Copy</button>
+                                        <div class="code-block">${escapeHTML(v.remediation.imports)}</div>
+                                    </div>
+                                ` : ''}
+                                
+                                <span class="label"> Corrected Code Example</span>
+                                <div class="code-container">
+                                    <button class="copy-btn" onclick="copyToClipboard(this)">Copy</button>
+                                    <div class="code-block">${escapeHTML(v.remediation.fix_code)}</div>
+                                </div>
+                                
+                                ${v.remediation.references && v.remediation.references.length ? `
+                                    <span class="label">🔗 References</span>
+                                    <div style="margin-top:5px;">
+                                        ${v.remediation.references.map(ref => `<a href="${encodeURI(ref)}" style="color:var(--link); font-size:0.85em; margin-right:15px;" target="_blank">Documentation</a>`).join('')}
+                                    </div>
+                                ` : ''}
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        window.addEventListener('message', event => {
+            const data = event.data;
+            const loader = document.getElementById('loader');
+            const content = document.getElementById('content');
+            const errorBox = document.getElementById('error-box');
+
+            loader.style.display = 'none';
+
+            if (data.error) {
+                errorBox.style.display = 'block';
+                errorBox.innerHTML = "<strong> Analysis Interrupted</strong><br>An unexpected issue occurred while generating the security report. Please try again.";
+                console.error("Technical Error details:", data.error);
+                return;
+            }
+
+            content.style.display = 'block';
+            
+            let displayFileName = "Unknown";
+            if (data.file) {
+                displayFileName = data.file.split('\\').pop().split('/').pop();
+            }
+            document.getElementById('file-info').innerText = "File: " + displayFileName;
+            document.getElementById('summary').innerText = data.report.summary || "";
+            
+            // Estrazione liste JSON prodotte dall'LLM
+            const semgrepFindings = data.report.semgrep_vulnerabilities || [];
+            const hiddenFindings = data.report.hidden_vulnerabilities || [];
+            
+            const countBadge = document.getElementById('vuln-count');
+            countBadge.innerText = `Total: ${semgrepFindings.length + hiddenFindings.length} issues`;
+            countBadge.style.display = 'inline';
+
+            // 1. RENDER SEMGREP FINDINGS
+            const semgrepList = document.getElementById('semgrep-list');
+            if (semgrepFindings.length === 0) {
+                semgrepList.innerHTML = `<p style="opacity: 0.7; font-style: italic;">No standard vulnerabilities detected by Semgrep.</p>`;
+            } else {
+                semgrepList.innerHTML = semgrepFindings.map(v => renderVulnerabilityCard(v, false)).join('');
+            }
+
+            // 2. RENDER HIDDEN FINDINGS
+            const hiddenList = document.getElementById('hidden-list');
+            if (hiddenFindings.length === 0) {
+                 hiddenList.innerHTML = `<div class="summary" style="text-align:center; margin-top: 20px;">The AI found no hidden vulnerabilities in this file.</div>`;
+            } else {
+                 hiddenList.innerHTML = hiddenFindings.map(v => renderVulnerabilityCard(v, true)).join('');
+            }
+            
+            // 3. RENDER DEBUG INFO
+            if (data.debug) {
+                const debugDiv = document.getElementById('debug-info');
+                debugDiv.innerHTML = `Process completed in ${data.debug.processing_time}s | RAG Context: ${data.rag_active ? ' Active' : '❌ Inactive'}`;
+            }
+        });
+    </script>
+</body>
+</html>

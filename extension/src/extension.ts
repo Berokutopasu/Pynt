@@ -5,6 +5,7 @@ import { DiagnosticDecorator } from './decorators';
 import { AnalysisType } from './types';
 import { PyntFixProvider, diagnosticFixMap } from './FixProvider';
 import * as path from 'path'
+import { DeepScanProvider } from './deepScanProvider';
 // Variabili Globali
 let analyzer: CodeAnalyzer;
 let decorator: DiagnosticDecorator;
@@ -44,7 +45,17 @@ export function activate(context: vscode.ExtensionContext) {
     });
 
     context.subscriptions.push(analyzeAfterFixCommand);
-
+     //DEEP SCAN COMMAND
+    context.subscriptions.push(
+        vscode.commands.registerCommand('pynt.runDeepScan', async () => {
+            try {
+                await DeepScanProvider.run(context);
+            } catch (err) {
+                vscode.window.showErrorMessage("Errore durante l'avvio del Deep Scan.");
+            }
+        })
+    );
+       context.subscriptions.push(diagnosticCollection);
 
     // 2. Status Bar Setup
     statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);

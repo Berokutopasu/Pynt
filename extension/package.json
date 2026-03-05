@@ -38,7 +38,11 @@
       {
         "command": "pynt.toggleAutoAnalysis",
         "title": "Pynt: Toggle Auto-Analisi al Salvataggio"
-      }
+      },
+      {
+            "command": "pynt.runDeepScan",
+            "title": "Pynt: Esegui Deep Scan (Ricerca Falsi Negativi)"
+        }
     ],
     "menus": {
       "editor/context": [

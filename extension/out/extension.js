@@ -42,6 +42,7 @@ const decorators_1 = require("./decorators");
 const types_1 = require("./types");
 const FixProvider_1 = require("./FixProvider");
 const path = __importStar(require("path"));
+const deepScanProvider_1 = require("./deepScanProvider");
 // Variabili Globali
 let analyzer;
 let decorator;
@@ -72,6 +73,16 @@ function activate(context) {
         await analyzeDocument(document, lastAnalysisType);
     });
     context.subscriptions.push(analyzeAfterFixCommand);
+    //DEEP SCAN COMMAND
+    context.subscriptions.push(vscode.commands.registerCommand('pynt.runDeepScan', async () => {
+        try {
+            await deepScanProvider_1.DeepScanProvider.run(context);
+        }
+        catch (err) {
+            vscode.window.showErrorMessage("Errore durante l'avvio del Deep Scan.");
+        }
+    }));
+    context.subscriptions.push(diagnosticCollection);
     // 2. Status Bar Setup
     statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
     statusBarItem.text = '$(shield) Pynt';
