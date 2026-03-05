@@ -27,6 +27,8 @@ Fixprovider*.txt
 
 # IDE & Build
 /extension/out
+/extension/node_modules/
+node_modules/
 .github/
 
 # RAG cache

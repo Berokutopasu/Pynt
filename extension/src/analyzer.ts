@@ -70,6 +70,16 @@ export class CodeAnalyzer {
         // LOGGA TUTTO QUELLO CHE ARRIVA!
         console.log(` [Analyzer] Risposta RAW da ${type}:`, JSON.stringify(rawData, null, 2));
         
+        // Debug aggiuntivo per vedere la struttura dei findings
+        if (rawData && rawData.findings) {
+          console.log(` [Analyzer] Findings da ${type}:`, rawData.findings.map((f: any) => ({
+            file: f.file,
+            file_path: f.file_path,
+            line: f.line,
+            message: f.message?.substring(0, 50) + '...'
+          })));
+        }
+        
         if (rawData.findings && rawData.findings.length > 0) {
             const primo = rawData.findings[0];
             console.log(" [ANALISI CAMPI] Controllo il primo finding:");

@@ -268,13 +268,20 @@ async function analyzeDocument(document: vscode.TextDocument, analysisType: Anal
             let targetUri: vscode.Uri;
             
            if (finding.file_path) {
+                // Pulisci il file_path dal prefisso /app/ se presente
+                let cleanPath = finding.file_path;
+                if (cleanPath.startsWith('/app/')) {
+                    cleanPath = cleanPath.substring(5); // Rimuovi "/app/"
+                    console.log(`[PYNT DEBUG] Cleaned file_path: ${finding.file_path} → ${cleanPath}`);
+                }
+                
                 // Se è assoluto, usiamo l'helper per trovare l'URI aperto (gestisce C: vs c:)
-                if (path.isAbsolute(finding.file_path)) {
-                    targetUri = getCanonicalUri(finding.file_path);
+                if (path.isAbsolute(cleanPath)) {
+                    targetUri = getCanonicalUri(cleanPath);
                 } 
                 // Se è relativo, uniamo e poi cerchiamo
                 else if (projectPath) {
-                    const fullPath = path.join(projectPath, finding.file_path);
+                    const fullPath = path.join(projectPath, cleanPath);
                     targetUri = getCanonicalUri(fullPath);
                 } 
                 else {
@@ -284,7 +291,21 @@ async function analyzeDocument(document: vscode.TextDocument, analysisType: Anal
                 targetUri = document.uri;
             }
             
-            const uriString = targetUri.toString();
+            const originalUriString = targetUri.toString();
+            const uriString = cleanBackendUri(originalUriString);
+            
+            // Se l'URI è stato pulito, ricreiamo il targetUri 
+            if (uriString !== originalUriString) {
+                try {
+                    targetUri = vscode.Uri.parse(uriString);
+                    console.log(`[PYNT DEBUG] Using cleaned URI: ${targetUri.toString()}`);
+                } catch (error) {
+                    console.error(`[PYNT DEBUG] Failed to parse cleaned URI: ${uriString}, error: ${error}`);
+                    // Fallback all'URI originale
+                    targetUri = vscode.Uri.parse(originalUriString);
+                }
+            }
+            
             const lookupKey = uriString.toLowerCase();
             // B. Salva nella memoria globale per i Decorator (Popup)
             if (!globalFindingsMap.has(lookupKey)) {
@@ -312,16 +333,24 @@ async function analyzeDocument(document: vscode.TextDocument, analysisType: Anal
             }
 
             // Aggiungi alla mappa temporanea
-            if (!diagMap.has(uriString)) {
-                diagMap.set(uriString, []);
+            const finalUriString = targetUri.toString(); // Usa l'URI finale (eventualmente pulito)
+            if (!diagMap.has(finalUriString)) {
+                diagMap.set(finalUriString, []);
             }
-            diagMap.get(uriString)?.push(diagnostic);
+            diagMap.get(finalUriString)?.push(diagnostic);
+            console.log(`[PYNT DEBUG] Added diagnostic for ${finalUriString}: ${finding.message}`);
         }
+
+        console.log(`[PYNT DEBUG] Total diagnostics created: ${Array.from(diagMap.values()).reduce((sum, arr) => sum + arr.length, 0)}`);
+        console.log(`[PYNT DEBUG] Files with diagnostics: ${Array.from(diagMap.keys())}`);
 
         // D. Applica le linee rosse a tutti i file
         diagMap.forEach((diags, uriString) => {
             const uri = vscode.Uri.parse(uriString);
+            console.log(`[PYNT DEBUG] Setting diagnostics for ${uriString}, count: ${diags.length}`);
+            console.log(`[PYNT DEBUG] Diagnostics:`, diags.map(d => ({message: d.message, range: d.range})));
             diagnosticCollection.set(uri, diags);
+            console.log(`[PYNT DEBUG] Diagnostics set successfully for ${uriString}`);
         });
 
         // 7. APPLICAZIONE DECORATORS (Immediata per il file corrente)
@@ -373,6 +402,29 @@ function getSeverity(severityStr: string): vscode.DiagnosticSeverity {
         case 'INFO': return vscode.DiagnosticSeverity.Information;
         default: return vscode.DiagnosticSeverity.Hint;
     }
+}
+
+// Funzione per pulire URI problematici dal backend  
+function cleanBackendUri(uriString: string): string {
+    console.log(`[PYNT DEBUG] Original URI: ${uriString}`);
+    
+    let cleanString = uriString;
+    
+    // Rimuovi prefisso /app/ se presente
+    if (cleanString.includes('/app/')) {
+        cleanString = cleanString.replace('/app/', '');
+        console.log(`[PYNT DEBUG] Removed /app/: ${cleanString}`);
+    }
+    
+    // Decodifica URL encoding (es: c%3A -> c:)
+    try {
+        cleanString = decodeURIComponent(cleanString);
+        console.log(`[PYNT DEBUG] Decoded URI: ${cleanString}`);
+    } catch (e) {
+        console.log(`[PYNT DEBUG] URI decode failed:`, e);
+    }
+    
+    return cleanString;
 }
 
 function getShortLabel(type: AnalysisType): string {
