@@ -27,6 +27,7 @@ Fixprovider*.txt
 
 # IDE & Build
 /extension/out
+.github/
 
 # RAG cache
 /server/.rag_cache/
