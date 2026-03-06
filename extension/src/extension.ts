@@ -161,15 +161,20 @@ export function activate(context: vscode.ExtensionContext) {
     // Al cambio di tab (Editor attivo)
     const editorChangeListener = vscode.window.onDidChangeActiveTextEditor((editor) => {
         if (editor) {
-           // 1. Recupera l'URI del file appena aperto
-            const uriString = editor.document.uri.toString();
+           // 1. Normalizza l'URI del file appena aperto  
+            const normalizedUri = normalizeUri(editor.document.uri.toString());
+            
+            console.log(`[HOVER DEBUG] File attivo normalizzato: ${normalizedUri}`);
+            console.log(`[HOVER DEBUG] Keys nella globalFindingsMap:`, Array.from(globalFindingsMap.keys()));
             
             // 2. Controlla se abbiamo risultati in memoria per questo file
-           const findingsForFile = globalFindingsMap.get(uriString.toLowerCase());
+           const findingsForFile = globalFindingsMap.get(normalizedUri);
             if (findingsForFile) {
-                console.log(`🔄 Ripristino decorazioni per: ${uriString}`);
+                console.log(`🔄 Ripristino decorazioni per: ${normalizedUri}`);
+                console.log(`[HOVER DEBUG] Findings trovati:`, findingsForFile.length);
                 decorator.applyDecorations(editor, findingsForFile);
             } else {
+                console.log(`[HOVER DEBUG] Nessun finding trovato per questo file`);
                 // Se non c'è nulla, pulisci (per evitare residui grafici)
                 decorator.clearDecorations();
             }
@@ -306,12 +311,17 @@ async function analyzeDocument(document: vscode.TextDocument, analysisType: Anal
                 }
             }
             
-            const lookupKey = uriString.toLowerCase();
+            // *** NUOVA NORMALIZZAZIONE ***
+            const normalizedKey = normalizeUri(targetUri.toString());
+            console.log(`[HOVER DEBUG] Salvato finding per URI normalizzato: ${normalizedKey}`);
+            
             // B. Salva nella memoria globale per i Decorator (Popup)
-            if (!globalFindingsMap.has(lookupKey)) {
-                globalFindingsMap.set(lookupKey, []);
+            if (!globalFindingsMap.has(normalizedKey)) {
+                globalFindingsMap.set(normalizedKey, []);
             }
-            globalFindingsMap.get(lookupKey)?.push(finding);
+            globalFindingsMap.get(normalizedKey)?.push(finding);
+            
+            console.log(`[HOVER DEBUG] Totale findings per questo URI: ${globalFindingsMap.get(normalizedKey)?.length}`);
 
             // C. Crea il Diagnostic (Linea Rossa)
             const range = new vscode.Range(
@@ -356,12 +366,17 @@ async function analyzeDocument(document: vscode.TextDocument, analysisType: Anal
         // 7. APPLICAZIONE DECORATORS (Immediata per il file corrente)
         const activeEditor = vscode.window.activeTextEditor;
         if (activeEditor) {
-            const currentUri = activeEditor.document.uri.toString();
+            const currentUriNormalized = normalizeUri(activeEditor.document.uri.toString());
+            console.log(`[HOVER DEBUG] Applicazione decoratori per file attivo normalizzato: ${currentUriNormalized}`);
             // Prende dalla mappa globale solo i popup di QUESTO file
-            const relevantFindings = globalFindingsMap.get(currentUri.toLowerCase());
+            const relevantFindings = globalFindingsMap.get(currentUriNormalized);
             
+            console.log(`[HOVER DEBUG] Findings trovati per applicazione immediata: ${relevantFindings?.length || 0}`);
             if (relevantFindings) {
+                console.log(`[HOVER DEBUG] Applicando ${relevantFindings.length} decorazioni...`);
                 decorator.applyDecorations(activeEditor, relevantFindings);
+            } else {
+                console.log(`[HOVER DEBUG] Nessun finding trovato per il file attivo`);
             }
         }
 
@@ -446,6 +461,24 @@ export function deactivate() {
     if (diagnosticCollection) diagnosticCollection.dispose();
     if (statusBarItem) statusBarItem.dispose();
     if (decorator) decorator.dispose();
+}
+
+// Helper per normalizzare URI in modo consistente
+function normalizeUri(uriString: string): string {
+    try {
+        // 1. Se è già un URI VS Code, prendiamo solo la parte del path
+        if (uriString.startsWith('file:///')) {
+            const uri = vscode.Uri.parse(uriString);
+            // Ricreiamo un URI standardizzato dal path del filesystem
+            return vscode.Uri.file(uri.fsPath).toString().toLowerCase();
+        }
+        
+        // 2. Se è un path normale, creiamo l'URI
+        return vscode.Uri.file(uriString).toString().toLowerCase();
+    } catch (error) {
+        console.error(`[URI DEBUG] Fallimento normalizzazione URI: ${uriString}`, error);
+        return uriString.toLowerCase();
+    }
 }
 
 // Helper per trovare l'URI "canonico" se il file è già aperto

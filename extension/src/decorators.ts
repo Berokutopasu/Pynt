@@ -44,6 +44,8 @@ export class DiagnosticDecorator {
   // --- 2. APPLICAZIONE DECORAZIONI ---
 
   applyDecorations(editor: vscode.TextEditor, findings: Finding[]) {
+    console.log(`[DECORATOR DEBUG] applyDecorations chiamato con ${findings.length} findings`);
+    
     const errorDecorations: vscode.DecorationOptions[] = [];
     const warningDecorations: vscode.DecorationOptions[] = [];
     const infoDecorations: vscode.DecorationOptions[] = [];
@@ -51,6 +53,14 @@ export class DiagnosticDecorator {
     const findingsByLine = new Map<number, Finding[]>();
 
     for (const finding of findings) {
+      console.log(`[DECORATOR DEBUG] Processing finding:`, {
+        line: finding.line,
+        message: finding.message.substring(0, 50) + '...',
+        hasEducationalExplanation: !!finding.educationalExplanation,
+        hasSuggestedFix: !!finding.suggestedFix,
+        hasCodeExample: !!finding.codeExample
+      });
+      
       const lineKey = finding.line;
       if (!findingsByLine.has(lineKey)) {
         findingsByLine.set(lineKey, []);
@@ -195,20 +205,29 @@ export class DiagnosticDecorator {
       
       md.appendMarkdown(`**${finding.message}**\n\n`);
 
+      md.appendMarkdown(`📚 **Spiegazione:** `);
       if (finding.educationalExplanation && finding.educationalExplanation !== 'Nessun contenuto disponibile.') {
-        md.appendMarkdown(`📚 ${finding.educationalExplanation}\n\n`);
+        md.appendMarkdown(`${finding.educationalExplanation}\n\n`);
+      } else {
+        md.appendMarkdown(`*Nessun contenuto disponibile.*\n\n`);
       }
 
-      if (finding.suggestedFix) {
-        md.appendMarkdown(`💡 **Fix:** ${finding.suggestedFix}\n\n`);
+      md.appendMarkdown(`💡 **Fix:** `);
+      if (finding.suggestedFix && finding.suggestedFix !== 'Nessun contenuto disponibile.') {
+        md.appendMarkdown(`${finding.suggestedFix}\n\n`);
+      } else {
+        md.appendMarkdown(`*Nessuna soluzione disponibile.*\n\n`);
       }
 
       // --- FIX CRITICO: Uso di cleanCodeBlock e appendCodeblock ---
-      if (finding.codeExample) {
+      if (finding.codeExample && finding.codeExample !== 'Nessun contenuto disponibile.') {
+        md.appendMarkdown(`💻 **Esempio:**\n`);
         const safeCode = this.cleanCodeBlock(finding.codeExample);
         // appendCodeblock gestisce i backtick automaticamente, prevenendo rotture del markdown
         md.appendCodeblock(safeCode, 'python'); 
         md.appendMarkdown(`\n`); // Spaziatura dopo il codice
+      } else {
+        md.appendMarkdown(`💻 **Esempio:** *Nessun esempio disponibile.*\n\n`);
       }
       // -----------------------------------------------------------
 
@@ -244,17 +263,20 @@ export class DiagnosticDecorator {
       md.appendMarkdown(`*Nessun contenuto disponibile.*\n\n`);
     }
 
+    md.appendMarkdown(`### 🛠️ Soluzione\n\n`);
     if (finding.suggestedFix && finding.suggestedFix !== 'Nessun contenuto disponibile.') {
-      md.appendMarkdown(`### 🛠️ Soluzione\n\n`);
       md.appendMarkdown(`${finding.suggestedFix}\n\n`);
+    } else {
+      md.appendMarkdown(`*Nessuna soluzione disponibile.*\n\n`);
     }
 
-    // --- FIX CRITICO ANCHE QUI ---
+    md.appendMarkdown(`### 💻 Esempio\n\n`);
     if (finding.codeExample && finding.codeExample !== 'Nessun contenuto disponibile.') {
-      md.appendMarkdown(`### 💻 Esempio\n\n`);
       const safeCode = this.cleanCodeBlock(finding.codeExample);
       md.appendCodeblock(safeCode, 'python');
       md.appendMarkdown(`\n`);
+    } else {
+      md.appendMarkdown(`*Nessun esempio disponibile.*\n\n`);
     }
     // -----------------------------
 
