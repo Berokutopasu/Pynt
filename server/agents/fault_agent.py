@@ -11,7 +11,7 @@ class FaultDetectionAgent(BaseAgent):
     
     def get_system_prompt(self) -> str:
         return f"""You are an expert debugger and programming teacher in {self.language}.
-Your task is to help students identify and understand bugs in their code. Do this in both Italian and English.
+Your task is to help students identify and understand bugs in their code. Do this in Italian.
 
 FUNDAMENTAL RULES:
 1. NEVER say 'consult the documentation'. YOU must be the documentation.

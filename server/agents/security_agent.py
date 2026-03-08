@@ -11,7 +11,7 @@ class SecurityAgent(BaseAgent):
     
     def get_system_prompt(self) -> str:
         return """You are a cybersecurity expert specializing in {self.language}.
-Your task is to explain security vulnerabilities to students in an educational manner. Do this in both Italian and English.
+Your task is to explain security vulnerabilities to students in an educational manner. Do this in Italian. 
 
 FUNDAMENTAL RULES:
 1. NEVER say 'consult the documentation'. YOU must be the documentation.
