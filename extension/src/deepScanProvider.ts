@@ -65,7 +65,10 @@ export class DeepScanProvider {
                 // NOTA: Inviamo l'intero oggetto 'data' invece di solo 'data.report'
                 // Questo permette alla Webview di accedere anche a 'data.code' e 'data.file'
                 if (data && data.report) {
-                    console.log(`[DEBUG] Vulnerabilità LLM trovate: ${data.report.vulnerabilities?.length || 0}`);
+                   const hiddenCount = data.report.hidden_vulnerabilities?.length || 0;
+                    const semgrepCount = data.report.semgrep_vulnerabilities?.length || 0;
+                    
+                    console.log(`[DEBUG] Trovati: ${semgrepCount} Base, ${hiddenCount} Nascosti.`);
                     panel.webview.postMessage(data); 
                     console.log('[DEBUG] Dati completi inviati alla Webview.');
                 }

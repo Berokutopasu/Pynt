@@ -89,6 +89,17 @@ class RAGService:
         """
         Indicizza l'intero progetto usando Embeddings Locali (No Rate Limits!)
         """
+        # --- FIX DOCKER PATH MAPPING ---
+        # Se il path di Windows non esiste su Linux, usiamo la cartella montata di default /app
+        original_path = project_path
+        if project_path and not os.path.exists(project_path):
+            if os.path.exists('/app'):
+                project_path = '/app'
+            else:
+                project_path = os.getcwd()
+            print(f" [RAG Path Mapping] Convertito: {original_path} -> {project_path}")
+        # -------------------------------
+
         # Evita re-indicizzazione inutile
         if self.current_project_path == project_path and self.vector_store:
             print(f" RAG: Progetto {project_path} già in memoria.")
@@ -125,7 +136,7 @@ class RAGService:
                 },
                 # Non fermare l'indicizzazione se un singolo file non e' decodificabile
                 silent_errors=True,
-                exclude=["**/venv/**", "**/node_modules/**", "**/.git/**", "**/__pycache__/**"] #esclude cartelle comuni che non contengono codice sorgente rilevante
+                exclude=["**/venv/**", "**/node_modules/**", "**/.git/**", "**/__pycache__/**", "**/.rag_cache/**"] #esclude cartelle comuni che non contengono codice sorgente rilevante
             )
             docs = loader.load()#legge fisicamente i file e li carica in memoria come documenti per l'indicizzazione
 
@@ -157,7 +168,7 @@ class RAGService:
 
 
     #prende una query e restituisce i chunk di codice più rilevanti per quella query, formattati con il nome del file e il contenuto. 
-    # #Questi chunk saranno poi usati come contesto per l'LLM durante l'analisi.
+    #Questi chunk saranno poi usati come contesto per l'LLM durante l'analisi.
     def retrieve_context(self, query: str, k: int = 40) -> str:
         """Recupera il codice rilevante"""
         if not self.vector_store:
