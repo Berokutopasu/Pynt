@@ -288,8 +288,13 @@ class BaseAgent(ABC):
                 
                 print("VALIDAZIONE PARSING:")
                 for key, value in parsed.items():
-                    status = "[OK]" if value and value != "Nessun contenuto disponibile." else "[FAIL]"
-                    print(f"  {status} {key}: {len(value) if value else 0} caratteri")
+                    # Gestione speciale per is_false_positive (boolean)
+                    if key == 'is_false_positive':
+                        status = "[OK]" if isinstance(value, bool) else "[FAIL]"
+                        print(f"  {status} {key}: {value} (boolean)")
+                    else:
+                        status = "[OK]" if value and value != "Nessun contenuto disponibile." else "[FAIL]"
+                        print(f"  {status} {key}: {len(value) if value else 0} caratteri")
                 
                 # Se arriviamo qui, è andato tutto bene: scriviamo in cache e ritorniamo
                 if settings.ENABLE_CACHE:
@@ -368,21 +373,31 @@ class BaseAgent(ABC):
     Code to analyze (numbered):
     ```python
     {code_snippet}
+    ```
+    
     CRITICAL RULES:
 
     1. Ignore any other errors present in nearby (unmarked) lines.
 
     2. Focus solely on the vulnerability indicated by the Technical Data.
 
-    3. If the "ADDITIONAL CONTEXT" shows that the data is sanitized elsewhere, flag it as a False Positive.
+    3. FALSE POSITIVE DETERMINATION: Consider it a False Positive ONLY if:
+       - The vulnerable code in the CURRENT FILE (lines shown above) has proper input validation/sanitization BEFORE the target line
+       - The vulnerable function already has security controls implemented in the SAME function
+       - The data flow in the CURRENT CODE shows the input is already validated
+       
+    4. DO NOT consider it False Positive if:
+       - Validation exists in OTHER files (RAG context)
+       - Validation should be but isn't implemented in the current function
+       - The context shows examples of vulnerabilities from other files
 
-    4. Generate a STRUCTURED response in ITALIAN following EXACTLY this format:
+    5. Generate a STRUCTURED response in ITALIAN following EXACTLY this format:
 
     FALSE_POSITIVE:
-        [true if the finding is a false positive (e.g., data is already sanitized, the rule does not apply in this context), false otherwise. Answer with only 'true' or 'false'.]
+        [true if the finding is a false positive based on validation/sanitization in the CURRENT CODE, false if the vulnerability is real in the current function. Answer with only 'true' or 'false'.]
 
     EXPLANATION:
-        [Explain in 2-3 sentences WHY line {start_line} is vulnerable. Mention the possible attack type. If the context mitigates the risk, explain it here.]
+        [Explain in 2-3 sentences WHY line {start_line} is vulnerable OR why it's a false positive. Mention the possible attack type. If validation exists in the CURRENT function, explain it here.]
 
     SUGGESTED_FIX:
         [Explain HOW to fix line {start_line}. Be specific.]
@@ -780,34 +795,54 @@ Respond EXCLUSIVELY in JSON format with the following structure:
 }}
 """
 
-        try:
-            response = await self.llm.ainvoke([
-                SystemMessage(content="You are an expert security analyst. Always respond in valid JSON. All explanations must be in Italian."),
-                HumanMessage(content=prompt)
-            ])
-            
-            raw_content = response.content.strip()
-            clean_json = re.sub(r'^```json\s*|\s*```$', '', raw_content, flags=re.MULTILINE).strip()
-
+        # Implementa lo stesso retry loop con rotazione delle chiavi dell'analisi normale
+        max_attempts = len(self.groq_keys) * 2
+        
+        for attempt in range(max_attempts):
             try:
-                # strict=False fondamentale per tollerare newlines generati dall'LLM
-                return json.loads(clean_json, strict=False)
-            except json.JSONDecodeError as e:
-                print(f"[DeepScan] JSON parsing failed ({e}), applying escape character repair...")
+                response = await self.llm.ainvoke([
+                    SystemMessage(content="You are an expert security analyst. Always respond in valid JSON. All explanations must be in Italian."),
+                    HumanMessage(content=prompt)
+                ])
                 
-                fixed_json = clean_json.replace('\\', '\\\\')
-                fixed_json = fixed_json.replace('\\\\"', '\\"') 
-                
+                raw_content = response.content.strip()
+                clean_json = re.sub(r'^```json\s*|\s*```$', '', raw_content, flags=re.MULTILINE).strip()
+
                 try:
-                    return json.loads(fixed_json, strict=False)
-                except Exception as final_error:
-                    print(f"[DeepScan] JSON repair failed: {final_error}")
-                    raise final_error
-            
-        except Exception as e:
-            print(f"[DeepScan] LLM Error: {e}")
-            return {
-                "semgrep_vulnerabilities": [],
-                "hidden_vulnerabilities": [],
-                "summary": f"Error during deep analysis: {str(e)}"
-            }
+                    # strict=False fondamentale per tollerare newlines generati dall'LLM
+                    return json.loads(clean_json, strict=False)
+                except json.JSONDecodeError as e:
+                    print(f"[DeepScan] JSON parsing failed ({e}), applying escape character repair...")
+                    
+                    fixed_json = clean_json.replace('\\', '\\\\')
+                    fixed_json = fixed_json.replace('\\\\"', '\\"') 
+                    
+                    try:
+                        return json.loads(fixed_json, strict=False)
+                    except Exception as final_error:
+                        print(f"[DeepScan] JSON repair failed: {final_error}")
+                        raise final_error
+                        
+            except Exception as e:
+                error_msg = str(e).lower()
+                
+                # Gestione specifica Rate Limit (come nell'analisi normale)
+                if "429" in error_msg or "rate limit" in error_msg or "too many requests" in error_msg:
+                    print(f"[DeepScan] Rate Limit Groq (Key Index {self.current_key_index}): {error_msg[:100]}...")
+                    self._rotate_key()
+                    await asyncio.sleep(1)  # Piccolo backoff
+                    continue  # Riprova con la nuova chiave
+                
+                # Gestione errori fatali
+                else:
+                    print(f"[DeepScan] LLM Error: {e}")
+                    import traceback
+                    print(traceback.format_exc())
+                    break  # Esce dal loop e va al fallback
+
+        # Fallback se tutte le chiavi sono esaurite o errore grave
+        return {
+            "semgrep_vulnerabilities": [],
+            "hidden_vulnerabilities": [],
+            "summary": "Errore durante analisi approfondita (tutte le chiavi API esaurite o servizio non disponibile)."
+        }

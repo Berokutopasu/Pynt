@@ -10,6 +10,13 @@ tmpclaude*
 .coverage
 .pytest_cache/
 
+# Python packaging & distribution
+*.egg-info/
+pynt_server.egg-info/
+build/
+dist/
+*.egg
+
 # __pycache__ directories
 /tests/__pycache__/
 /server/__pycache__/
