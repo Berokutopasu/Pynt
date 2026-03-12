@@ -118,3 +118,55 @@ rules:
     message: "L'uso di eval() è proibito."
     severity: ERROR
     languages: [python]
+  - id: pynt-string-int-comparison
+    patterns:
+      - pattern-either:
+          - pattern: '"..." == $VAR'
+          - pattern: '$VAR == "..."'
+          - pattern: '"..." != $VAR'
+          - pattern: '$VAR != "..."'
+    message: "Confronto tra stringa e intero. Sarà sempre False."
+    severity: ERROR
+    languages: [python]
+
+  - id: pynt-useless-assignment
+    patterns:
+      - pattern: |
+          $X = $V1
+          $X = $V2
+    message: "La variabile $X viene sovrascritta immediatamente senza essere usata."
+    severity: INFO
+    languages: [python]
+    
+  - id: pynt-sql-injection-hardcore
+    patterns:
+      - pattern-either:
+          # Caso 1: Assegnazione f-string con execute diretto
+          - pattern: |
+              $QUERY = f"..."
+              ...
+              $CURSOR.execute($QUERY)
+          
+          # Caso 2: Assegnazione concatenazione con execute diretto
+          - pattern: |
+              $QUERY = "..." + ...
+              ...
+              $CURSOR.execute($QUERY)
+          
+          # Caso 3: Execute inline con f-string
+          - pattern: $CURSOR.execute(f"...")
+          
+          # Caso 4: Execute inline con concatenazione
+          - pattern: $CURSOR.execute("..." + ...)
+    message: "SQL Injection Critica: Rilevata costruzione query insicura."
+    languages: [python]
+    severity: ERROR
+  - id: identical-comparison-fault
+    patterns:
+      - pattern: $X == $X
+    message: "Errore Logico: Stai confrontando una variabile con se stessa. Questo blocco di codice è inutile o nasconde un bug."
+    languages:
+      - python
+    severity: WARNING
+    metadata:
+      category: correctness

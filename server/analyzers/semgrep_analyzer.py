@@ -176,10 +176,7 @@ class SemgrepAnalyzer:
                 ])
             elif analysis_type == AnalysisType.FAULT_DETECTION:
                 configs.extend([
-                    "r/python.lang.correctness",
-                    "r/python.lang.maintainability",
-                    "p/error-prone",
-                    "p/reliability"
+                    "p/python",
                 ])
         
         if not configs:
