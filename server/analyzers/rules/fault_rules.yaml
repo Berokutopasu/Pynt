@@ -1,0 +1,74 @@
+# --- FAULT DETECTION ---
+rules:
+  - id: pynt-string-int-comparison
+    pattern: '"..." == $INT'
+    message: "Confronto tra stringa e intero. Sarà sempre False."
+    severity: ERROR
+    languages: [python]
+
+  - id: pynt-unreachable-code-after-return
+    pattern: |
+      return $VAL
+      ...
+    message: "Codice dopo un return non verrà mai eseguito. Rimuovere o riposizionare."
+    severity: WARNING
+    languages: [python]
+
+  - id: pynt-none-comparison-equals
+    patterns:
+      - pattern: "$X == None"
+      - pattern: "$X != None"
+      - pattern: "None == $X"
+      - pattern: "None != $X"
+    message: "Usa 'is' o 'is not' per confrontare con None anziché '==' o '!='."
+    severity: INFO
+    languages: [python]
+
+  - id: pynt-mutable-default-arg
+    pattern: "def $FUNC($ARG=[]):"
+    message: "Argomento di default mutabile può causare comportamenti indesiderati. Usa None e inizializza all'interno della funzione."
+    severity: WARNING
+    languages: [python]
+
+  - id: pynt-useless-assignment
+    patterns:
+      - pattern: |
+          $X = $V1
+          $X = $V2
+    message: "La variabile $X viene sovrascritta immediatamente senza essere usata."
+    severity: INFO
+    languages: [python]
+
+  - id: pynt-bool-comparison
+    patterns:
+      - pattern: "$X == True"
+      - pattern: "$X == False"
+      - pattern: "True == $X"
+      - pattern: "False == $X"
+    message: "Confrontare booleani usando 'is' o rimuovendo il confronto è più idiomatico."
+    severity: INFO
+    languages: [python]
+
+  - id: pynt-wildcard-import
+    pattern: "from $MODULE import *"
+    message: "Importazioni wildcard possono causare collisioni di nomi e rendere il codice meno chiaro."
+    severity: WARNING
+    languages: [python]
+
+  - id: pynt-empty-except
+    patterns:
+      - pattern: |
+          try:
+              ...
+          except:
+              pass
+      - pattern: |
+          try:
+              ...
+          except Exception:
+              pass
+    message: "Gestione eccezioni vuota: almeno loggare o gestire l'errore."
+    severity: WARNING
+    languages: [python]
+
+  

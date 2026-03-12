@@ -1,0 +1,41 @@
+ # --- BEST PRACTICES ---
+ rules:
+  - id: pynt-mutable-defaults
+    pattern: "def $F(..., $ARG=[], ...): ..."
+    message: "Mutable default argument rilevato. Usa '$ARG=None'."
+    severity: WARNING
+    languages: [python]
+
+  - id: pynt-redundant-true
+    pattern: "if $X == True:"
+    message: "Confronto ridondante. Usa 'if $X:'."
+    severity: INFO
+    languages: [python]
+    
+  - id: pynt-always-true-comparison
+    pattern: "True == True"
+    message: "Confronto 'True == True' è inutile."
+    severity: WARNING
+    languages: [python]
+
+  - id: pynt-use-enumerate
+    pattern: "for $var in range(len($SEQ)):"
+    message: "Preferisci 'for idx, item in enumerate($SEQ):' per iterare con indice."
+    severity: INFO
+    languages: [python]
+
+  - id: pynt-fstring-prefer
+    patterns:
+      - pattern: '"""$A""" + $B'
+      - pattern: '\"$A\" + $B'
+    message: "Usa f-string invece di concatenare stringhe."
+    severity: INFO
+    languages: [python]
+
+  - id: pynt-zero-length-check
+    patterns:
+      - pattern: 'len($X) == 0'
+      - pattern: 'len($X) != 0'
+    message: "Usa 'not $X' o '$X' invece di controllare len() con zero."
+    severity: INFO
+    languages: [python]

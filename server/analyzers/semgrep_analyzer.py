@@ -154,9 +154,12 @@ class SemgrepAnalyzer:
         lang = language.lower()
         
         base_path = os.path.dirname(os.path.abspath(__file__))
-        path_subdir = os.path.join(base_path, "rules", "python_rules.yaml")
-        if os.path.exists(path_subdir):
-            configs.append(path_subdir)
+        security_rules = os.path.join(base_path, "rules", "security_rules.yaml")
+
+        fault_rules = os.path.join(base_path, "rules", "fault_rules.yaml")
+        bestpractice_rules = os.path.join(base_path, "rules", "bestpractice_rules.yaml")
+
+      
 
         if lang in ["python", "py"]:
             if analysis_type == AnalysisType.SECURITY:
@@ -167,6 +170,8 @@ class SemgrepAnalyzer:
                     "p/insecure-transport",
                     "p/sql-injection"
                 ])
+                if os.path.exists(security_rules):
+                    configs.append(security_rules)
             elif analysis_type == AnalysisType.BEST_PRACTICES:
                 configs.extend([
                     "p/python",
@@ -174,11 +179,16 @@ class SemgrepAnalyzer:
                     "r/python.style",
                     "r/python.complexity"
                 ])
+                if os.path.exists(bestpractice_rules):
+                    configs.append(bestpractice_rules)
             elif analysis_type == AnalysisType.FAULT_DETECTION:
                 configs.extend([
                     "p/python",
+                    "p/default"
                 ])
-        
+                if os.path.exists(fault_rules):
+                    configs.append(fault_rules)
+
         if not configs:
             return ["p/default", "p/security-audit"]
             
